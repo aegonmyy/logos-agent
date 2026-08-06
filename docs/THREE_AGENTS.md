@@ -41,6 +41,11 @@ the live local sequencer:
 | Messaging | `storage_messaging_skills` | create group, join, deliver a message |
 | Blockchain | `agent_spending`, `a2a_two_agents` | shielded balance, policy-gated send, paid task |
 
+All three are additionally demonstrated together in one run by
+`tests/three_category_agents.rs`: three separate agents are deployed (each mints
+its own shielded account), and each exercises its category against the live local
+sequencer. Result: `test result: ok. 1 passed` (finished in 223.54s).
+
 The Blockchain agent's flow is additionally proven with **real proofs**
 (`RISC0_DEV_MODE=0`) in [`DEV_MODE_0_EVIDENCE.md`](DEV_MODE_0_EVIDENCE.md).
 
