@@ -33,3 +33,19 @@ test result: ok. 1 passed
 The sequencer endpoint used is `https://seq-testnet.paradox.computer` (LEZ
 v0.2.0). The public testnet is intermittently available; when it is up, the agent
 wallet reaches it and reads real chain state.
+
+## Storage against a real Logos Storage (Codex) node
+
+`tests/codex_live.rs` (run with `--ignored`) encrypts a file client-side, uploads
+it to a running Logos Storage node, then downloads and decrypts it:
+
+```
+stored CID: zDvZRwzkyruMcgW4n3Xs2xCd3DtiL1b4jSAFK7eD1tjj2GRioYqr
+round-trip ok: 17 bytes
+test result: ok. 1 passed
+```
+
+Run a node (the Logos Storage / Codex build exposes `/api/storage/v1`) with its
+REST API on `127.0.0.1:8095`, then:
+`cargo test --test codex_live -- --ignored --nocapture`. The node only ever sees
+ciphertext; encryption/decryption happen in the agent.

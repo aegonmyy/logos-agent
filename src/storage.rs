@@ -156,12 +156,12 @@ impl Storage for CodexStorage {
         let sealed = seal(&self.key, data)?;
         let response = self
             .http
-            .post(format!("{}/api/codex/v1/data", self.base))
+            .post(format!("{}/api/storage/v1/data", self.base))
             .header("Content-Type", "application/octet-stream")
             .body(sealed)
             .send()
             .await
-            .context("POST /api/codex/v1/data")?
+            .context("POST /api/storage/v1/data")?
             .error_for_status()
             .context("storage node rejected upload")?;
         let cid = response.text().await.context("reading CID")?.trim().to_owned();
@@ -176,7 +176,7 @@ impl Storage for CodexStorage {
         let sealed = self
             .http
             .get(format!(
-                "{}/api/codex/v1/data/{address}/network/stream",
+                "{}/api/storage/v1/data/{address}/network/stream",
                 self.base
             ))
             .send()
