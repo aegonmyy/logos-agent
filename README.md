@@ -1,5 +1,7 @@
 # Logos Autonomous Agent
 
+[![CI](https://github.com/aegonmyy/logos-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/aegonmyy/logos-agent/actions/workflows/ci.yml)
+
 A Logos-native autonomous agent: a module that gives an AI agent its own shielded
 LEZ wallet, private file storage, encrypted messaging, an owner-controlled
 spending policy, and an A2A-compatible way to hire and pay other agents — all over
