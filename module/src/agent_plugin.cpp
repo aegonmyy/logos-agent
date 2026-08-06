@@ -6,6 +6,8 @@ AgentPlugin::~AgentPlugin() = default;
 void AgentPlugin::initLogos(LogosAPI* api)
 {
     m_api = api;
+    // Also set the base-class handle the Logos Core runtime uses to route calls.
+    logosAPI = api;
 }
 
 QString AgentPlugin::health()

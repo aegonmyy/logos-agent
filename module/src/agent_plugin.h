@@ -3,6 +3,7 @@
 
 #include <QObject>
 #include <QString>
+#include <QVariantList>
 
 #include "agent_ffi_client.h"
 #include "agent_interface.h"
@@ -29,6 +30,9 @@ public:
     Q_INVOKABLE QString startSessionJson(const QString& accountId) override;
     Q_INVOKABLE QString invokeSkillJson(const QString& name,
                                         const QString& argsJson)   override;
+
+signals:
+    void eventResponse(const QString& name, const QVariantList& args);
 
 private:
     AgentFfiClient m_ffi;
