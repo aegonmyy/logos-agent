@@ -35,6 +35,9 @@ jobs:
       RISC0_DEV_MODE: "1"
       CARGO_TERM_COLOR: always
       CARGO_HOME: /tmp/ci-cargo-home
+      # Force Node 20 for JS actions: Node 24 in a container hits a runner
+      # file-command ("save_state") bug on checkout.
+      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
     steps:
       - uses: actions/checkout@v4
 
