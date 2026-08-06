@@ -1,0 +1,20 @@
+// RemoteObjects source definition for the Agent Owner view.
+// Properties are pushed to the QML UI; slots are invoked from QML.
+
+class AgentOwner
+{
+    // Version JSON reported by the agent core.
+    PROP(QString agentVersion READWRITE)
+
+    // Catalogue of the agent's skills, as JSON.
+    PROP(QString skillsJson READWRITE)
+
+    // Last error message (empty on success).
+    PROP(QString lastErr READWRITE)
+
+    // Re-read the agent's version and skills.
+    SLOT(void refresh())
+
+    // Invoke a skill by name with JSON arguments; returns the JSON result.
+    SLOT(QString invokeSkill(QString name, QString argsJson))
+}

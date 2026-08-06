@@ -1,0 +1,25 @@
+{
+  "name": "agent_owner",
+  "version": "1.0.0",
+  "description": "Basecamp owner app for the autonomous agent: status, skills, and spend approvals",
+  "type": "ui_qml",
+  "category": "ui",
+  "main": "agent_owner_plugin",
+  "view": "qml/Main.qml",
+  "dependencies": [
+    "agent"
+  ],
+  "nix": {
+    "packages": {
+      "build": [],
+      "runtime": []
+    },
+    "external_libraries": [],
+    "cmake": {
+      "find_packages": [],
+      "extra_sources": [],
+      "extra_include_dirs": [],
+      "extra_link_libraries": []
+    }
+  }
+}
