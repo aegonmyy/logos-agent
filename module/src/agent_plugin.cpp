@@ -26,3 +26,16 @@ QString AgentPlugin::skillsJson()
 {
     return m_ffi.skills();
 }
+
+QString AgentPlugin::startSessionJson(const QString& accountId)
+{
+    if (m_ffi.startSession(accountId)) {
+        return QStringLiteral("{\"ok\":true}");
+    }
+    return QStringLiteral("{\"ok\":false,\"error\":\"could not start session\"}");
+}
+
+QString AgentPlugin::invokeSkillJson(const QString& name, const QString& argsJson)
+{
+    return m_ffi.invoke(name, argsJson);
+}

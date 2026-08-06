@@ -26,6 +26,9 @@ public:
     Q_INVOKABLE QString health()          override;
     Q_INVOKABLE QString agentVersionJson() override;
     Q_INVOKABLE QString skillsJson()      override;
+    Q_INVOKABLE QString startSessionJson(const QString& accountId) override;
+    Q_INVOKABLE QString invokeSkillJson(const QString& name,
+                                        const QString& argsJson)   override;
 
 private:
     AgentFfiClient m_ffi;
