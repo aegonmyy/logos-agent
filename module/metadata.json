@@ -1,0 +1,23 @@
+{
+  "name": "agent",
+  "version": "1.0.0",
+  "description": "Autonomous agent module: shielded wallet, skills, owner control, and A2A coordination",
+  "type": "core",
+  "category": "general",
+  "main": "agent_plugin",
+  "dependencies": [],
+  "capabilities": [],
+  "nix": {
+    "packages": {
+      "build": [],
+      "runtime": []
+    },
+    "external_libraries": [],
+    "cmake": {
+      "find_packages": [],
+      "extra_sources": [],
+      "extra_include_dirs": [],
+      "extra_link_libraries": []
+    }
+  }
+}
