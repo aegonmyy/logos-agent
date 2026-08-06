@@ -1,0 +1,47 @@
+name: CI
+
+# Builds the agent and runs its end-to-end tests against an in-process LEZ stack.
+# Tests run with RISC0_DEV_MODE=1 (proofs faked) so CI stays minutes, not hours;
+# the real-proof (RISC0_DEV_MODE=0) run is recorded in docs/DEV_MODE_0_EVIDENCE.md.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        run: rustup show   # honours rust-toolchain.toml
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install RISC0 toolchain
+        run: |
+          curl -L https://risczero.com/install | bash
+          echo "$HOME/.risc0/bin" >> "$GITHUB_PATH"
+          "$HOME/.risc0/bin/rzup" install rust
+          "$HOME/.risc0/bin/rzup" install r0vm 3.0.5
+
+      - name: Build
+        run: cargo build -p logos_agent --all-targets
+
+      - name: Test (dev-mode proofs; Docker brings up the local LEZ stack)
+        env:
+          RISC0_DEV_MODE: "1"
+        run: cargo test -p logos_agent -- --test-threads=1
