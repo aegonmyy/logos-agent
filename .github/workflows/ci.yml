@@ -1,11 +1,20 @@
 name: CI
 
-# Builds the agent and runs its fast, hermetic tests. Runs on a self-hosted
-# runner because compiling the crate pulls in the full Logos Execution Zone
-# dependency tree (RISC0, circuits, sequencer), which does not fit GitHub's
-# hosted runners. The chain/real-node tests (agent_spending, a2a_two_agents,
-# waku_live, codex_live, testnet_live) run separately against local services and
-# are documented under docs/.
+# Clean-room build + fast tests.
+#
+# Runs on a self-hosted runner because compiling this crate pulls in the entire
+# Logos Execution Zone (RISC0 prover, ZK circuits, sequencer), which exceeds
+# GitHub's hosted-runner disk/time limits — there is no lighter subset, since any
+# build of the crate compiles all of it.
+#
+# To keep the build honest despite the self-hosted runner, the job runs inside a
+# FRESH container with a clean CARGO_HOME: the toolchain image is standard (as on
+# hosted runners), but every dependency is re-fetched and re-compiled from a
+# clean checkout each run — nothing from the host is reused.
+#
+# The chain/real-node tests (agent_spending, a2a_two_agents, waku_live,
+# codex_live, testnet_live) run against local services and are evidenced under
+# docs/; CI covers the build and the hermetic tests.
 
 on:
   push:
@@ -18,14 +27,39 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-and-test:
+  clean-build-and-test:
     runs-on: [self-hosted, linux]
+    container:
+      image: rust:1.94-bookworm
     env:
       RISC0_DEV_MODE: "1"
+      CARGO_TERM_COLOR: always
+      CARGO_HOME: /tmp/ci-cargo-home
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build
+      - name: System dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends clang libssl-dev pkg-config git curl ca-certificates
+
+      - name: Install RISC0 toolchain
+        run: |
+          curl -L https://risczero.com/install | bash
+          echo "$HOME/.risc0/bin" >> "$GITHUB_PATH"
+          "$HOME/.risc0/bin/rzup" install rust
+          "$HOME/.risc0/bin/rzup" install r0vm 3.0.5
+          "$HOME/.risc0/bin/rzup" install cargo-risczero
+
+      - name: Stub blockchain circuits (no proving in CI)
+        run: |
+          mkdir -p "$HOME/.logos-blockchain-circuits"/{pol,poc,poq,zksign}
+          echo "v0.4.2" > "$HOME/.logos-blockchain-circuits/VERSION"
+          for d in pol poc poq zksign; do
+            echo '{"type":"stub"}' > "$HOME/.logos-blockchain-circuits/$d/verification_key.json"
+          done
+
+      - name: Build (clean)
         run: cargo build --lib --bins
 
       - name: Fast tests (no external services)
