@@ -56,11 +56,11 @@ jobs:
 
       - name: Stub blockchain circuits (no proving in CI)
         run: |
-          mkdir -p "$HOME/.logos-blockchain-circuits"/{pol,poc,poq,zksign}
-          echo "v0.4.2" > "$HOME/.logos-blockchain-circuits/VERSION"
           for d in pol poc poq zksign; do
+            mkdir -p "$HOME/.logos-blockchain-circuits/$d"
             echo '{"type":"stub"}' > "$HOME/.logos-blockchain-circuits/$d/verification_key.json"
           done
+          echo "v0.4.2" > "$HOME/.logos-blockchain-circuits/VERSION"
 
       - name: Build (clean)
         run: cargo build --lib --bins
