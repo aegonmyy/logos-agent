@@ -73,7 +73,7 @@ pub struct SkillContext<'a> {
 
 /// A named, documented capability. Implement this trait and register it to add a
 /// new skill without modifying the agent core.
-#[async_trait]
+#[async_trait(?Send)]
 pub trait Skill: Send + Sync {
     /// Stable identifier, e.g. `"wallet.send"`.
     fn name(&self) -> &'static str;
@@ -252,7 +252,7 @@ fn arg_amount(args: &Value, key: &str) -> Result<u128> {
 /// It is a stand-in for any specialist capability an agent might sell.
 pub struct EchoSkill;
 
-#[async_trait]
+#[async_trait(?Send)]
 impl Skill for EchoSkill {
     fn name(&self) -> &'static str {
         "demo.echo"
@@ -274,7 +274,7 @@ impl Skill for EchoSkill {
 /// `wallet.balance` — the agent's holding of a given token.
 struct WalletBalance;
 
-#[async_trait]
+#[async_trait(?Send)]
 impl Skill for WalletBalance {
     fn name(&self) -> &'static str {
         "wallet.balance"
@@ -306,7 +306,7 @@ impl Skill for WalletBalance {
 /// `wallet.send` — send tokens, enforcing the owner's spending policy.
 struct WalletSend;
 
-#[async_trait]
+#[async_trait(?Send)]
 impl Skill for WalletSend {
     fn name(&self) -> &'static str {
         "wallet.send"
@@ -349,7 +349,7 @@ impl Skill for WalletSend {
 /// `storage.upload` — encrypt a file and store it; returns its content address.
 struct StorageUpload(Arc<dyn Storage>);
 
-#[async_trait]
+#[async_trait(?Send)]
 impl Skill for StorageUpload {
     fn name(&self) -> &'static str {
         "storage.upload"
@@ -374,7 +374,7 @@ impl Skill for StorageUpload {
 /// `storage.download` — retrieve and decrypt a stored file.
 struct StorageDownload(Arc<dyn Storage>);
 
-#[async_trait]
+#[async_trait(?Send)]
 impl Skill for StorageDownload {
     fn name(&self) -> &'static str {
         "storage.download"
@@ -398,7 +398,7 @@ impl Skill for StorageDownload {
 /// `storage.list` — list the files the agent has stored.
 struct StorageList(Arc<dyn Storage>);
 
-#[async_trait]
+#[async_trait(?Send)]
 impl Skill for StorageList {
     fn name(&self) -> &'static str {
         "storage.list"
@@ -421,7 +421,7 @@ impl Skill for StorageList {
 /// `storage.share` — grant another identity access to a stored file.
 struct StorageShare(Arc<dyn Storage>);
 
-#[async_trait]
+#[async_trait(?Send)]
 impl Skill for StorageShare {
     fn name(&self) -> &'static str {
         "storage.share"
@@ -448,7 +448,7 @@ impl Skill for StorageShare {
 /// `messaging.send` — send a message to a user or agent address.
 struct MessagingSend(Arc<dyn Messaging>);
 
-#[async_trait]
+#[async_trait(?Send)]
 impl Skill for MessagingSend {
     fn name(&self) -> &'static str {
         "messaging.send"
@@ -473,7 +473,7 @@ impl Skill for MessagingSend {
 /// `messaging.join` — join a group topic.
 struct MessagingJoin(Arc<dyn Messaging>);
 
-#[async_trait]
+#[async_trait(?Send)]
 impl Skill for MessagingJoin {
     fn name(&self) -> &'static str {
         "messaging.join"
@@ -494,7 +494,7 @@ impl Skill for MessagingJoin {
 /// `messaging.create_group` — create a group topic and invite members.
 struct MessagingCreateGroup(Arc<dyn Messaging>);
 
-#[async_trait]
+#[async_trait(?Send)]
 impl Skill for MessagingCreateGroup {
     fn name(&self) -> &'static str {
         "messaging.create_group"
@@ -527,7 +527,7 @@ impl Skill for MessagingCreateGroup {
 /// `wallet.history` — a summary of the agent's recent transactions.
 struct WalletHistory;
 
-#[async_trait]
+#[async_trait(?Send)]
 impl Skill for WalletHistory {
     fn name(&self) -> &'static str {
         "wallet.history"
@@ -551,7 +551,7 @@ impl Skill for WalletHistory {
 /// `program.query` — read the state of an account owned by a LEZ program.
 struct ProgramQuery;
 
-#[async_trait]
+#[async_trait(?Send)]
 impl Skill for ProgramQuery {
     fn name(&self) -> &'static str {
         "program.query"
@@ -579,7 +579,7 @@ impl Skill for ProgramQuery {
 /// `program.call` — submit a transaction to a LEZ program.
 struct ProgramCall;
 
-#[async_trait]
+#[async_trait(?Send)]
 impl Skill for ProgramCall {
     fn name(&self) -> &'static str {
         "program.call"
@@ -640,7 +640,7 @@ impl Skill for ProgramCall {
 /// `program.deploy` — deploy a compiled LEZ program binary; returns its id.
 struct ProgramDeploy;
 
-#[async_trait]
+#[async_trait(?Send)]
 impl Skill for ProgramDeploy {
     fn name(&self) -> &'static str {
         "program.deploy"

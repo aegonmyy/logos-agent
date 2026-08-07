@@ -20,7 +20,7 @@ use wallet::cli::{
     account::{AccountSubcommand, NewSubcommand},
     programs::token::TokenProgramAgnosticSubcommand,
 };
-use wallet::config::WalletConfigOverrides;
+use wallet::config::{SequencerConnectionData, WalletConfigOverrides};
 
 // Defaults to the official LEZ testnet; override with AGENT_TESTNET_URL.
 fn testnet_url() -> String {
@@ -90,7 +90,10 @@ async fn public_token_mint_and_transfer_on_testnet() -> Result<()> {
 
     // The public testnet produces blocks slowly, so wait patiently for inclusion.
     let overrides = WalletConfigOverrides {
-        sequencer_addr: Some(testnet_url().parse().unwrap()),
+        sequencers: Some(vec![SequencerConnectionData {
+            sequencer_addr: testnet_url().parse().unwrap(),
+            basic_auth: None,
+        }]),
         seq_tx_poll_max_blocks: Some(200),
         seq_poll_max_retries: Some(2000),
         seq_poll_timeout: Some(Duration::from_secs(3)),
@@ -99,9 +102,11 @@ async fn public_token_mint_and_transfer_on_testnet() -> Result<()> {
     let (mut wallet, _mnemonic) = WalletCore::new_init_storage(
         dir.join("config.json"),
         dir.join("storage"),
+        dir.join("statistics.json"),
         Some(overrides),
         "testpw",
-    )?;
+    )
+    .await?;
 
     let start = net_retry!(wallet.sync_to_latest_block(), "initial-sync");
     println!("testnet start block: {start}");

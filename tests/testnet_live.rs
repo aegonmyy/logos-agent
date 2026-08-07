@@ -5,7 +5,7 @@
 use std::time::Duration;
 
 use wallet::WalletCore;
-use wallet::config::WalletConfigOverrides;
+use wallet::config::{SequencerConnectionData, WalletConfigOverrides};
 
 // The endpoint defaults to the official LEZ testnet; override with
 // AGENT_TESTNET_URL (e.g. a community sequencer) if needed.
@@ -22,7 +22,10 @@ async fn agent_wallet_reaches_live_testnet() {
 
     // The public endpoint flaps (intermittent nginx 502s), so retry patiently.
     let overrides = WalletConfigOverrides {
-        sequencer_addr: Some(testnet_url().parse().unwrap()),
+        sequencers: Some(vec![SequencerConnectionData {
+            sequencer_addr: testnet_url().parse().unwrap(),
+            basic_auth: None,
+        }]),
         seq_poll_max_retries: Some(2000),
         seq_poll_timeout: Some(Duration::from_secs(3)),
         ..Default::default()
@@ -30,9 +33,11 @@ async fn agent_wallet_reaches_live_testnet() {
     let (mut wallet, _mnemonic) = WalletCore::new_init_storage(
         dir.join("config.json"),
         dir.join("storage"),
+        dir.join("statistics.json"),
         Some(overrides),
         "testpw",
     )
+    .await
     .expect("build wallet pointed at the testnet");
 
     // Reaching the live sequencer and reading its chain height proves the agent

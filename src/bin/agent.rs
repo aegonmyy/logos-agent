@@ -51,7 +51,9 @@ async fn main() -> Result<()> {
     let args = Args::parse();
 
     // Wallet + sequencer connection come from the standard LEE wallet env.
-    let mut wallet = WalletCore::from_env().context("initialising wallet from environment")?;
+    let mut wallet = WalletCore::from_env()
+        .await
+        .context("initialising wallet from environment")?;
 
     // Give the agent its shielded identity and spending policy.
     let agent = Agent::create(
