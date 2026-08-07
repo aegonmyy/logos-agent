@@ -36,10 +36,9 @@ jobs:
       RISC0_DEV_MODE: "1"
       CARGO_TERM_COLOR: always
       CARGO_HOME: /tmp/ci-cargo-home
-      # Build into the container's own /tmp, not the shared runner workspace, so
-      # this root-in-container job doesn't leave root-owned target/ files that a
-      # later host job (e2e) can't clean on checkout.
-      CARGO_TARGET_DIR: /tmp/ci-build-target
+      # NOTE: builds into the default workspace target/ (large host volume). This
+      # leaves root-owned files in the shared workspace; the host `e2e` job's
+      # reclaim step chowns them back before its own checkout.
       # Force Node 20 for JS actions: Node 24 in a container hits a runner
       # file-command ("save_state") bug on checkout.
       ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
