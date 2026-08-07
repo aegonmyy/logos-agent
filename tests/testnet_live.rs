@@ -2,6 +2,8 @@
 //! and read its chain state. Ignored by default (needs the network). Run with:
 //!   cargo test -p logos_agent --test testnet_live -- --ignored --nocapture
 
+use std::time::Duration;
+
 use wallet::WalletCore;
 use wallet::config::WalletConfigOverrides;
 
@@ -13,8 +15,11 @@ async fn agent_wallet_reaches_live_testnet() {
     let dir = std::env::temp_dir().join(format!("agent-testnet-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
 
+    // The public endpoint flaps (intermittent nginx 502s), so retry patiently.
     let overrides = WalletConfigOverrides {
         sequencer_addr: Some(TESTNET.parse().unwrap()),
+        seq_poll_max_retries: Some(2000),
+        seq_poll_timeout: Some(Duration::from_secs(3)),
         ..Default::default()
     };
     let (mut wallet, _mnemonic) = WalletCore::new_init_storage(
