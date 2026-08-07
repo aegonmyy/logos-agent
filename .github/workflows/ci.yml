@@ -94,5 +94,5 @@ jobs:
           done
           echo "v0.4.2" > "$HOME/.logos-blockchain-circuits/VERSION"
 
-      - name: E2E: agent on a local LEZ sequencer (shielded account, spend, hold)
+      - name: "E2E: agent on a local LEZ sequencer (shielded account, spend, hold)"
         run: cargo test --test agent_spending -- --nocapture --test-threads=1
