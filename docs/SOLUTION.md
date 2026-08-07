@@ -75,7 +75,9 @@ reimplemented — and the agent is indistinguishable on-chain from any other hol
 
 - [x] Documented skill interface (SDK) for adding skills without modifying the core.
 - [x] Owner-facing interface inside the Logos app (Basecamp) — the `agent_owner`
-      `ui_qml` module builds to a loadable plugin + QML assets.
+      `ui_qml` module builds to a loadable plugin + QML assets, and
+      `scripts/package-basecamp.sh` produces standalone, side-loadable `.lgx`
+      bundles (`agent.lgx`, `agent_owner.lgx`) as separate downloadables.
 
 ### Reliability
 
@@ -83,9 +85,10 @@ reimplemented — and the agent is indistinguishable on-chain from any other hol
 - [x] Skill failures are isolated — a failing skill returns an error and does not
       crash the agent or other skills; A2A surfaces it as a `failed` task.
 - [x] Recovers pending approvals across restarts — the runtime persists pending
-      spends to disk (`AgentRuntime::with_state`) and restores them on start; an
-      owner-notification that cannot be delivered is retried and the spend is not
-      held or executed. *A2A task-state persistence is a further refinement.*
+      spends to disk (`AgentRuntime::with_state`) and restores them on start, and
+      the deployed `agent` binary uses this by default (`--state-file`). A2A task
+      state is likewise persisted (`A2aClient::with_state`). An owner-notification
+      that cannot be delivered is retried and the spend is not held or executed.
 
 ### Performance
 
@@ -94,14 +97,16 @@ reimplemented — and the agent is indistinguishable on-chain from any other hol
 
 ### Supportability
 
-- [x] End-to-end integration tests run against a LEZ sequencer (in-process,
-      standalone) covering identity, skills, approvals, and A2A payment.
+- [x] End-to-end integration tests run against a LEZ sequencer (standalone) and
+      are included in CI — the `e2e` job runs `agent_spending` against a local
+      sequencer brought up via Docker on every push.
 - [x] Reproducible demo script runs against a real local sequencer with
       `RISC0_DEV_MODE=0`; the real-proof run is recorded in
       `docs/DEV_MODE_0_EVIDENCE.md`.
-- [x] README documents end-to-end usage and deployment.
-- [ ] CI green on the default branch. *CI workflow is included; a green run
-      depends on the repository being stood up.*
+- [x] README documents end-to-end usage and deployment (CLI + Basecamp owner
+      walkthrough).
+- [x] CI green on the default branch — the `clean-build-and-test` and `e2e` jobs
+      both pass on `main`.
 - [ ] Recorded narrated video showing terminal output including proof generation.
       *To be recorded with `scripts/demo.sh`.*
 
@@ -143,9 +148,10 @@ order of minutes on commodity hardware.
 
 ### Supportability
 
-The work is covered by end-to-end integration tests against a real local sequencer,
-a reproducible demo script that runs at `RISC0_DEV_MODE=0`, documented CU costs,
-a README, and a CI workflow. Retained evidence of the real-proof run is included.
+The work is covered by end-to-end integration tests against a real local sequencer
+— wired into CI as a dedicated `e2e` job, with CI green on the default branch — a
+reproducible demo script that runs at `RISC0_DEV_MODE=0`, documented CU costs, a
+README, and retained evidence of the real-proof run.
 
 ## Terms & Conditions
 
