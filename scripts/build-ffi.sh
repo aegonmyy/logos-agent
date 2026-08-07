@@ -22,7 +22,7 @@ NIXPKGS="https://github.com/NixOS/nixpkgs/archive/${NIXPKGS_REV}.tar.gz"
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 OUT_DIR="$REPO_DIR/target/ffi"
 
-nix-shell -I nixpkgs="$NIXPKGS" -p gcc python312 pkg-config openssl --run "
+nix-shell -I nixpkgs="$NIXPKGS" -p gcc python312 pkg-config openssl pcsclite --run "
   set -e
   export PYO3_PYTHON=\$(command -v python3)
   export CC=\$(command -v gcc)
