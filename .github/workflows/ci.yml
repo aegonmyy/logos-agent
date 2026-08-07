@@ -36,6 +36,10 @@ jobs:
       RISC0_DEV_MODE: "1"
       CARGO_TERM_COLOR: always
       CARGO_HOME: /tmp/ci-cargo-home
+      # Build into the container's own /tmp, not the shared runner workspace, so
+      # this root-in-container job doesn't leave root-owned target/ files that a
+      # later host job (e2e) can't clean on checkout.
+      CARGO_TARGET_DIR: /tmp/ci-build-target
       # Force Node 20 for JS actions: Node 24 in a container hits a runner
       # file-command ("save_state") bug on checkout.
       ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
@@ -84,6 +88,9 @@ jobs:
       CARGO_HOME: /tmp/ci-cargo-home
       CARGO_TARGET_DIR: /tmp/ci-e2e-target
     steps:
+      - name: Reclaim workspace (older runs may have left root-owned files)
+        run: sudo chown -R "$(id -u):$(id -g)" "$RUNNER_WORKSPACE" 2>/dev/null || true
+
       - uses: actions/checkout@v4
 
       - name: Stub blockchain circuits (no proving in CI)
