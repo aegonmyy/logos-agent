@@ -5000,6 +5000,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "test_fixtures",
+ "test_programs",
  "token_core",
  "tokio",
  "wallet",
@@ -7927,6 +7928,15 @@ dependencies = [
  "tokio",
  "url",
  "wallet",
+]
+
+[[package]]
+name = "test_programs"
+version = "0.1.0"
+source = "git+https://github.com/logos-blockchain/logos-execution-zone.git?rev=a58fbce2ff48c58b7bb5001b1a27e64b9596ee3a#a58fbce2ff48c58b7bb5001b1a27e64b9596ee3a"
+dependencies = [
+ "lee",
+ "risc0-build",
 ]
 
 [[package]]

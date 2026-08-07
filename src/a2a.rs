@@ -82,7 +82,7 @@ impl AgentCard {
 }
 
 /// A task as tracked by the client.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Task {
     pub id: String,
     pub state: TaskState,
@@ -299,11 +299,24 @@ impl A2aProvider {
     }
 }
 
+/// The durable part of a client: its task ledger and the next task counter.
+/// Persisted so a restarted client keeps tracking in-flight tasks and never
+/// reuses a task id.
+#[derive(Debug, Default, Serialize, Deserialize)]
+struct PersistedClientState {
+    next_task: u64,
+    tasks: std::collections::HashMap<String, Task>,
+}
+
 /// A client agent: discovers providers, pays for a task, and awaits its result.
 pub struct A2aClient {
     agent: Agent,
     messaging: Arc<dyn Messaging>,
     next_task: u64,
+    /// Last-known state of every task this client has started.
+    tasks: std::collections::HashMap<String, Task>,
+    /// Where the ledger is persisted, if durability is enabled.
+    state_path: Option<std::path::PathBuf>,
 }
 
 impl A2aClient {
@@ -313,7 +326,53 @@ impl A2aClient {
             agent,
             messaging,
             next_task: 0,
+            tasks: std::collections::HashMap::new(),
+            state_path: None,
         }
+    }
+
+    /// Build a client whose task ledger is persisted at `state_path`, restoring
+    /// any previously-saved tasks so they survive a restart.
+    pub fn with_state(
+        agent: Agent,
+        messaging: Arc<dyn Messaging>,
+        state_path: std::path::PathBuf,
+    ) -> Result<Self> {
+        let mut client = Self::new(agent, messaging);
+        if state_path.exists() {
+            let bytes = std::fs::read(&state_path).context("reading a2a client state")?;
+            let state: PersistedClientState =
+                serde_json::from_slice(&bytes).context("parsing a2a client state")?;
+            client.next_task = state.next_task;
+            client.tasks = state.tasks;
+        }
+        client.state_path = Some(state_path);
+        Ok(client)
+    }
+
+    /// Persist the task ledger if durability is enabled.
+    fn persist(&self) -> Result<()> {
+        if let Some(path) = &self.state_path {
+            let state = PersistedClientState {
+                next_task: self.next_task,
+                tasks: self.tasks.clone(),
+            };
+            let bytes = serde_json::to_vec(&state).context("encoding a2a client state")?;
+            std::fs::write(path, bytes).context("writing a2a client state")?;
+        }
+        Ok(())
+    }
+
+    /// The last-known state of a tracked task, if any (e.g. after a restart).
+    #[must_use]
+    pub fn task(&self, id: &str) -> Option<&Task> {
+        self.tasks.get(id)
+    }
+
+    /// Ids of every task this client is tracking.
+    #[must_use]
+    pub fn tracked_ids(&self) -> Vec<String> {
+        self.tasks.keys().cloned().collect()
     }
 
     /// The client agent's own account (payer).
@@ -371,16 +430,20 @@ impl A2aClient {
         .context("encoding task request")?;
         self.messaging.send(&provider.address, &request).await?;
 
-        Ok(Task {
-            id: task_id,
+        let task = Task {
+            id: task_id.clone(),
             state: TaskState::Submitted,
             result: None,
-        })
+        };
+        self.tasks.insert(task_id, task.clone());
+        self.persist()?;
+        Ok(task)
     }
 
     /// Read the latest status for `task` from `provider`'s update stream
-    /// (`agent.subscribe`). Returns the task advanced to its newest known state.
-    pub async fn poll_task(&self, provider: &AgentCard, task: &Task) -> Result<Task> {
+    /// (`agent.subscribe`). Returns the task advanced to its newest known state
+    /// and records that state in the (optionally persisted) ledger.
+    pub async fn poll_task(&mut self, provider: &AgentCard, task: &Task) -> Result<Task> {
         let payee: AccountId = provider
             .lez_account
             .parse()
@@ -400,6 +463,8 @@ impl A2aClient {
                 latest.result = update.get("result").cloned().filter(|value| !value.is_null());
             }
         }
+        self.tasks.insert(latest.id.clone(), latest.clone());
+        self.persist()?;
         Ok(latest)
     }
 
@@ -412,5 +477,58 @@ impl A2aClient {
         .context("encoding cancel")?;
         self.messaging.send(&provider.address, &bytes).await?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::SpendingPolicy;
+    use crate::messaging::InMemoryMessaging;
+
+    fn test_agent() -> Agent {
+        let account_id: AccountId = "Ds8q5PjLcKwwV97Zi7duhRVF9uwA2PuYMoLL7FwCzsXE"
+            .parse()
+            .expect("valid account id");
+        Agent::from_parts(account_id, SpendingPolicy { per_tx_limit: 10 })
+    }
+
+    /// The client's task ledger and next-id counter survive a restart.
+    #[tokio::test]
+    async fn client_task_ledger_survives_a_restart() {
+        let path = std::env::temp_dir().join(format!("a2a-client-{}.json", std::process::id()));
+        let _ = std::fs::remove_file(&path);
+        let messaging = Arc::new(InMemoryMessaging::new());
+
+        // First client tracks a task, then goes away.
+        {
+            let mut client =
+                A2aClient::with_state(test_agent(), Arc::clone(&messaging) as Arc<_>, path.clone())
+                    .unwrap();
+            client.next_task = 5;
+            client.tasks.insert(
+                "task-4".to_owned(),
+                Task {
+                    id: "task-4".to_owned(),
+                    state: TaskState::Working,
+                    result: None,
+                },
+            );
+            client.persist().unwrap();
+        }
+
+        // A restarted client restores the ledger from disk.
+        let restored =
+            A2aClient::with_state(test_agent(), Arc::clone(&messaging) as Arc<_>, path.clone())
+                .unwrap();
+        assert_eq!(restored.tracked_ids(), vec!["task-4".to_owned()]);
+        assert_eq!(
+            restored.task("task-4").map(|t| &t.state),
+            Some(&TaskState::Working),
+            "task state should survive the restart"
+        );
+        assert_eq!(restored.next_task, 5, "next-id counter should survive too");
+
+        let _ = std::fs::remove_file(&path);
     }
 }

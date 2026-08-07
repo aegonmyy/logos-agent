@@ -30,3 +30,6 @@ wallet = { git = "https://github.com/logos-blockchain/logos-execution-zone.git",
 
 [dev-dependencies]
 test_fixtures = { git = "https://github.com/logos-blockchain/logos-execution-zone.git", rev = "a58fbce2ff48c58b7bb5001b1a27e64b9596ee3a" }
+# Compiled sample LEZ programs (RISC0 guests) — used only by the live
+# program.deploy/call/query integration test.
+test_programs = { git = "https://github.com/logos-blockchain/logos-execution-zone.git", rev = "a58fbce2ff48c58b7bb5001b1a27e64b9596ee3a" }
