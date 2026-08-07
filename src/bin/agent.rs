@@ -40,6 +40,10 @@ struct Args {
     /// How often to poll the owner channel, in seconds.
     #[arg(long, default_value_t = 5)]
     poll_secs: u64,
+
+    /// Where to persist pending-approval state so it survives a restart.
+    #[arg(long, env = "AGENT_STATE_FILE", default_value = "agent-state.json")]
+    state_file: std::path::PathBuf,
 }
 
 #[tokio::main]
@@ -64,11 +68,15 @@ async fn main() -> Result<()> {
     // Open the owner channel over Logos Messaging and run the event loop.
     let messaging = Arc::new(WakuMessaging::new(args.messaging_url));
     let channel = OwnerChannel::open(messaging, &account_id, &args.owner);
-    let mut runtime = AgentRuntime::new(agent, channel);
+    // Persist pending approvals so a restart (node/network interruption) resumes
+    // them instead of dropping over-limit spends awaiting the owner's decision.
+    let mut runtime = AgentRuntime::with_state(agent, channel, args.state_file.clone())
+        .context("loading persisted agent state")?;
 
     println!(
-        "agent deployed; awaiting owner instructions (spending limit {}).",
-        args.spending_limit
+        "agent deployed; awaiting owner instructions (spending limit {}, state {}).",
+        args.spending_limit,
+        args.state_file.display()
     );
     loop {
         wallet.sync_to_latest_block().await.ok();

@@ -1,0 +1,35 @@
+{
+  "name": "logos-agent",
+  "version": "1.0.0",
+  "description": "Autonomous AI agent for Logos Core: shielded LEZ wallet, composable skills, owner-approved spending, Storage, Messaging, and A2A coordination.",
+  "license": "MIT OR Apache-2.0",
+  "repository": "https://github.com/aegonmyy/logos-agent",
+  "components": [
+    {
+      "name": "agent",
+      "type": "core",
+      "path": "module",
+      "metadata": "module/metadata.json",
+      "main": "agent_plugin",
+      "description": "Headless agent runtime module loaded by Logos Core (Qt Remote Objects plugin)."
+    },
+    {
+      "name": "agent_owner",
+      "type": "ui_qml",
+      "path": "app",
+      "metadata": "app/metadata.json",
+      "main": "agent_owner_plugin",
+      "view": "app/src/qml/Main.qml",
+      "dependencies": ["agent"],
+      "description": "Basecamp owner mini-app: agent status, skills, and spend-approval UI over the owner channel."
+    }
+  ],
+  "build": {
+    "core": "nix build .#agent-install",
+    "app": "nix build .#owner-install",
+    "core_bundle": "nix build .#agent-lgx",
+    "app_bundle": "nix build .#owner-lgx",
+    "ffi": "./scripts/build-ffi.sh",
+    "downloadables": "./scripts/package-basecamp.sh"
+  }
+}

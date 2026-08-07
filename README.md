@@ -109,20 +109,84 @@ A provider serves tasks by dispatching the requested skill through its own
 
 ## Running
 
-### Deploy an agent (headless)
+### 1. Deploy an agent (headless, one command)
 
-The wallet and sequencer connection come from the standard LEE wallet environment.
+The wallet and sequencer connection come from the standard LEE wallet
+environment. A single command gives the agent a shielded identity, a spending
+limit, and an owner channel, then runs its event loop:
 
 ```bash
-export LEE_WALLET_HOME_DIR=/path/to/wallet
-agent --owner <owner-identity> --spending-limit 50 \
-      --messaging-url http://127.0.0.1:8645
+export LEE_WALLET_HOME_DIR=/path/to/wallet     # wallet + sequencer connection
+agent --owner <owner-identity> \               # who approves over-limit spends
+      --spending-limit 50 \                     # autonomous per-tx limit (tokens)
+      --messaging-url http://127.0.0.1:8645 \   # nwaku REST (Logos Messaging)
+      --state-file agent-state.json             # pending approvals persist here
 ```
 
-### End-to-end demo
+On start it prints the agent's shielded account id (fund it from any wallet) and
+then waits for owner instructions. All flags also read from env vars
+(`AGENT_OWNER`, `AGENT_SPENDING_LIMIT`, `AGENT_MESSAGING_URL`,
+`AGENT_STATE_FILE`). The `--state-file` is what makes pending approvals survive a
+restart: on relaunch the agent reloads any spends still awaiting the owner.
+
+### 2. Owner interaction (CLI)
+
+Below the limit the agent spends on its own. Above it, the agent posts an
+approval request to the owner channel and holds the spend. The owner side of the
+channel (the same two Waku topics the agent derives) is driven programmatically
+via `OwnerChannel`:
+
+```rust
+use logos_agent::owner::OwnerChannel;
+
+let channel = OwnerChannel::open(messaging, &agent_account_id, "<owner-identity>");
+
+// See what the agent is asking for:
+for req in channel.poll_agent_requests().await? {
+    println!("agent requests: {req}");            // { id, skill, to, amount, limit }
+}
+
+// Approve or deny by request id, or change the limit — all over Logos Messaging:
+channel.decide("req-0", true).await?;             // approve
+channel.decide("req-1", false).await?;            // deny
+channel.configure_limit(75).await?;               // raise the autonomous limit
+```
+
+The agent applies these on its next poll and prints the resolution
+(`Executed` / `Denied` / `Reconfigured`).
+
+### 3. Owner interaction (Basecamp app)
+
+The same owner channel is surfaced as a Basecamp mini-app (`app/`, package
+`agent_owner`) so the owner can act from any Logos app instance holding their
+keys — no server. It shows the agent's status and skills and lists pending
+spend requests with approve / deny controls.
+
+Build the loadable assets and distributable bundles:
+
+```bash
+nix build .#owner-install        # the owner app module
+nix build .#agent-install        # the core agent module
+./scripts/build-ffi.sh           # the Rust core (liblogos_agent.so)
+
+# …or produce standalone, side-loadable .lgx bundles in dist/:
+./scripts/package-basecamp.sh    # -> dist/agent.lgx, dist/agent_owner.lgx, liblogos_agent.so
+```
+
+Load them into `logoscore` / Basecamp (see `docs/LOGOS_CORE_LOADED.md` for a
+verified end-to-end run, and `dist/README.txt` after packaging):
+
+```bash
+export LOGOS_AGENT_FFI_PATH=/abs/path/to/liblogos_agent.so
+logoscore --config-dir "$LC" load-module agent
+logoscore --config-dir "$LC" load-module agent_owner
+```
+
+### 4. End-to-end demo
 
 `scripts/demo.sh` runs the full flow against a local sequencer with real proofs
-(`RISC0_DEV_MODE=0`). See the script header for what it exercises.
+(`RISC0_DEV_MODE=0`) — the on-screen proof generation is the evidence dev mode is
+off. See the script header for what it exercises.
 
 ## Tests
 
