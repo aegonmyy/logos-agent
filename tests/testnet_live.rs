@@ -7,7 +7,12 @@ use std::time::Duration;
 use wallet::WalletCore;
 use wallet::config::WalletConfigOverrides;
 
-const TESTNET: &str = "https://seq-testnet.paradox.computer";
+// The endpoint defaults to the official LEZ testnet; override with
+// AGENT_TESTNET_URL (e.g. a community sequencer) if needed.
+fn testnet_url() -> String {
+    std::env::var("AGENT_TESTNET_URL")
+        .unwrap_or_else(|_| "https://testnet.lez.logos.co".to_owned())
+}
 
 #[tokio::test]
 #[ignore = "hits the live public LEZ testnet"]
@@ -17,7 +22,7 @@ async fn agent_wallet_reaches_live_testnet() {
 
     // The public endpoint flaps (intermittent nginx 502s), so retry patiently.
     let overrides = WalletConfigOverrides {
-        sequencer_addr: Some(TESTNET.parse().unwrap()),
+        sequencer_addr: Some(testnet_url().parse().unwrap()),
         seq_poll_max_retries: Some(2000),
         seq_poll_timeout: Some(Duration::from_secs(3)),
         ..Default::default()

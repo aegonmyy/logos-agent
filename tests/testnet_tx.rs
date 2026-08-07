@@ -22,7 +22,11 @@ use wallet::cli::{
 };
 use wallet::config::WalletConfigOverrides;
 
-const TESTNET: &str = "https://seq-testnet.paradox.computer";
+// Defaults to the official LEZ testnet; override with AGENT_TESTNET_URL.
+fn testnet_url() -> String {
+    std::env::var("AGENT_TESTNET_URL")
+        .unwrap_or_else(|_| "https://testnet.lez.logos.co".to_owned())
+}
 
 /// The public endpoint flaps (its upstream sequencer goes up and down for
 /// minutes at a time behind an nginx that then returns 502). Retry a network op
@@ -86,7 +90,7 @@ async fn public_token_mint_and_transfer_on_testnet() -> Result<()> {
 
     // The public testnet produces blocks slowly, so wait patiently for inclusion.
     let overrides = WalletConfigOverrides {
-        sequencer_addr: Some(TESTNET.parse().unwrap()),
+        sequencer_addr: Some(testnet_url().parse().unwrap()),
         seq_tx_poll_max_blocks: Some(200),
         seq_poll_max_retries: Some(2000),
         seq_poll_timeout: Some(Duration::from_secs(3)),
