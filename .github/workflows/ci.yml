@@ -12,9 +12,10 @@ name: CI
 # hosted runners), but every dependency is re-fetched and re-compiled from a
 # clean checkout each run — nothing from the host is reused.
 #
-# The chain/real-node tests (agent_spending, a2a_two_agents, waku_live,
-# codex_live, testnet_live) run against local services and are evidenced under
-# docs/; CI covers the build and the hermetic tests.
+# The clean-build job proves a from-scratch build; the `e2e` job runs an
+# end-to-end integration test against a real local LEZ sequencer (standalone
+# mode, brought up via Docker). The real-node tests (waku_live, codex_live,
+# testnet_live) need external nodes and are evidenced under docs/.
 
 on:
   push:
@@ -70,3 +71,28 @@ jobs:
           cargo test --lib
           cargo test --test full_skill_catalogue
           cargo test --test storage_messaging_skills
+
+  e2e:
+    # End-to-end integration test against a real local LEZ sequencer (standalone
+    # mode). Runs directly on the self-hosted host (not in a container) so it can
+    # use Docker — the test harness brings up the bedrock node + sequencer +
+    # indexer + wallet via Docker and drives the agent against them.
+    runs-on: [self-hosted, linux]
+    env:
+      RISC0_DEV_MODE: "1"
+      CARGO_TERM_COLOR: always
+      CARGO_HOME: /tmp/ci-cargo-home
+      CARGO_TARGET_DIR: /tmp/ci-e2e-target
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Stub blockchain circuits (no proving in CI)
+        run: |
+          for d in pol poc poq zksign; do
+            mkdir -p "$HOME/.logos-blockchain-circuits/$d"
+            echo '{"type":"stub"}' > "$HOME/.logos-blockchain-circuits/$d/verification_key.json"
+          done
+          echo "v0.4.2" > "$HOME/.logos-blockchain-circuits/VERSION"
+
+      - name: E2E: agent on a local LEZ sequencer (shielded account, spend, hold)
+        run: cargo test --test agent_spending -- --nocapture --test-threads=1
