@@ -175,25 +175,50 @@ impl A2aProvider {
         Ok(())
     }
 
-    /// Serve every pending task request in the inbox: transition through the A2A
-    /// lifecycle and publish status updates carrying the skill result.
-    pub async fn serve_pending(&self) -> Result<usize> {
+    /// Serve every pending item in the inbox: transition task requests through
+    /// the A2A lifecycle, and honour cancellations. A cancel for a task we have
+    /// not yet served ends it in `Canceled` and — if a wallet is supplied and the
+    /// request named its payer and price — refunds the payment.
+    ///
+    /// Pass `Some(wallet)` to enable refund-on-cancel; `None` serves requests but
+    /// can only acknowledge a cancel (no refund).
+    pub async fn serve_pending(&self, mut wallet: Option<&mut WalletCore>) -> Result<usize> {
         let inbox = inbox_topic(&self.agent.account_id());
         let updates = updates_topic(&self.agent.account_id());
-        let requests = self.messaging.poll(&inbox).await?;
-        let mut served = 0;
+        let messages = self.messaging.poll(&inbox).await?;
 
-        for raw in requests {
-            let request: Value =
-                serde_json::from_slice(&raw).context("decoding task request")?;
-            if request.get("kind").and_then(Value::as_str) != Some("task_request") {
-                continue;
+        // Split the inbox into task requests and the ids cancelled this round.
+        let mut requests = Vec::new();
+        let mut cancelled = std::collections::HashSet::new();
+        for raw in messages {
+            let msg: Value = serde_json::from_slice(&raw).context("decoding a2a message")?;
+            match msg.get("kind").and_then(Value::as_str) {
+                Some("task_request") => requests.push(msg),
+                Some("task_cancel") => {
+                    if let Some(id) = msg.get("taskId").and_then(Value::as_str) {
+                        cancelled.insert(id.to_owned());
+                    }
+                }
+                _ => {}
             }
+        }
+
+        let mut served = 0;
+        for request in requests {
             let task_id = request
                 .get("taskId")
                 .and_then(Value::as_str)
                 .unwrap_or_default()
                 .to_owned();
+
+            if cancelled.contains(&task_id) {
+                self.refund_task(wallet.as_deref_mut(), &request).await?;
+                self.publish_update(&updates, &task_id, &TaskState::Canceled, None)
+                    .await?;
+                served += 1;
+                continue;
+            }
+
             let skill = request
                 .get("skill")
                 .and_then(Value::as_str)
@@ -227,6 +252,32 @@ impl A2aProvider {
         }
 
         Ok(served)
+    }
+
+    /// Refund a cancelled task's payment to the payer named in its request.
+    /// A no-op when no wallet is supplied or the request omitted `from`/`priceLez`
+    /// (e.g. an unpaid task). The refund bypasses the spending policy — returning
+    /// money the client already paid is inherently authorised.
+    async fn refund_task(&self, wallet: Option<&mut WalletCore>, request: &Value) -> Result<()> {
+        let Some(wallet) = wallet else { return Ok(()) };
+        let Some(from) = request.get("from").and_then(Value::as_str) else {
+            return Ok(());
+        };
+        let Some(price) = request
+            .get("priceLez")
+            .and_then(Value::as_str)
+            .and_then(|p| p.parse::<u128>().ok())
+        else {
+            return Ok(());
+        };
+        if price == 0 {
+            return Ok(());
+        }
+        let payer: AccountId = from
+            .parse()
+            .map_err(|_| anyhow!("cancel refund: request has an invalid payer account"))?;
+        self.agent.send_approved(wallet, payer, price).await?;
+        Ok(())
     }
 
     async fn publish_update(
@@ -313,6 +364,9 @@ impl A2aClient {
             "taskId": task_id,
             "skill": skill,
             "params": params,
+            // Named so the provider can refund this exact payment on cancel.
+            "from": self.agent.account_id().to_string(),
+            "priceLez": price.to_string(),
         }))
         .context("encoding task request")?;
         self.messaging.send(&provider.address, &request).await?;

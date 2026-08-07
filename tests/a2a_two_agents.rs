@@ -92,7 +92,7 @@ async fn two_agents_discover_run_task_and_settle_payment() -> Result<()> {
     wait_for_block().await;
 
     // Provider serves the pending task through the lifecycle.
-    let served = provider.serve_pending().await?;
+    let served = provider.serve_pending(None).await?;
     assert_eq!(served, 1, "provider should serve one task");
 
     // Client reads the result off the update stream.
@@ -115,6 +115,84 @@ async fn two_agents_discover_run_task_and_settle_payment() -> Result<()> {
         provider.agent().balance(ctx.wallet(), definition),
         10,
         "provider should have received the task price"
+    );
+
+    Ok(())
+}
+
+/// A task cancelled before the provider serves it settles as `Canceled` and the
+/// payment is refunded — a real reversing LEZ transfer on chain.
+#[tokio::test]
+async fn canceled_task_is_refunded() -> Result<()> {
+    let mut ctx = TestContext::new().await?;
+
+    let definition = new_account(&mut ctx, false).await?;
+    let client_agent = Agent::create(ctx.wallet_mut(), SpendingPolicy { per_tx_limit: 50 }).await?;
+    // Provider can spend nothing autonomously — the refund must bypass the policy.
+    let provider_agent = Agent::create(ctx.wallet_mut(), SpendingPolicy { per_tx_limit: 0 }).await?;
+
+    // Fund the client with 100 tokens.
+    wallet::cli::execute_subcommand(
+        ctx.wallet_mut(),
+        Command::Token(TokenProgramAgnosticSubcommand::New {
+            definition_account_id: public_mention(definition),
+            supply_account_id: private_mention(client_agent.account_id()),
+            name: "A2A-COIN".to_owned(),
+            total_supply: 100,
+        }),
+    )
+    .await?;
+    wait_for_block().await;
+
+    let messaging = Arc::new(InMemoryMessaging::new());
+
+    let mut provider_registry = SkillRegistry::new();
+    provider_registry.register(Box::new(EchoSkill));
+    let provider = A2aProvider::new(
+        provider_agent,
+        Arc::clone(&messaging) as Arc<_>,
+        provider_registry,
+        "greeter-agent",
+        &[("demo.echo", 10)],
+    );
+    provider.publish_card(DISCOVERY).await?;
+
+    let mut client = A2aClient::new(client_agent, Arc::clone(&messaging) as Arc<_>);
+    let cards = client.discover(DISCOVERY).await?;
+    let card = &cards[0];
+
+    // Client pays and requests, then cancels before the provider serves it.
+    let task = client
+        .run_task(ctx.wallet_mut(), card, "demo.echo", json!({ "text": "hi" }))
+        .await?;
+    wait_for_block().await;
+
+    // The payment left the client and reached the provider.
+    ctx.wallet_mut().sync_to_latest_block().await?;
+    assert_eq!(client.agent().balance(ctx.wallet(), definition), 90);
+    assert_eq!(provider.agent().balance(ctx.wallet(), definition), 10);
+
+    client.cancel(card, &task).await?;
+
+    // Provider serves: sees the cancel, refunds the payment, marks it canceled.
+    let served = provider.serve_pending(Some(ctx.wallet_mut())).await?;
+    assert_eq!(served, 1, "provider should process the cancelled task");
+    wait_for_block().await;
+
+    let done = client.poll_task(card, &task).await?;
+    assert_eq!(done.state, TaskState::Canceled, "task should be canceled");
+
+    // The refund reversed the payment: client back to 100, provider back to 0.
+    ctx.wallet_mut().sync_to_latest_block().await?;
+    assert_eq!(
+        client.agent().balance(ctx.wallet(), definition),
+        100,
+        "cancel should refund the client in full"
+    );
+    assert_eq!(
+        provider.agent().balance(ctx.wallet(), definition),
+        0,
+        "provider should hold nothing after refunding"
     );
 
     Ok(())
