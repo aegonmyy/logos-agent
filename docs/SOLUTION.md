@@ -110,10 +110,14 @@ reimplemented — and the agent is indistinguishable on-chain from any other hol
 - [ ] Recorded narrated video showing terminal output including proof generation.
       *To be recorded with `scripts/demo.sh`.*
 
-> **Testnet note:** the public LEZ testnet was reset for v0.2.0. As with our
-> LP-0017 submission, deployment and the demo are shown against a real local
-> sequencer at `RISC0_DEV_MODE=0`; the deployment steps are identical for the
-> public testnet once its endpoint is configured.
+> **Testnet evidence:** the agent has real, proof-backed activity on the
+> **official public LEZ testnet** (`testnet.lez.logos.co`, v0.2.4) at
+> `RISC0_DEV_MODE=0` — it defines and mints a token to its own account, included
+> on-chain (balance 100, tx `0e3ebbb8…`). See **`docs/TESTNET_EVIDENCE.md`** for
+> hashes, the explorer links, and the on-chain account state. The full multi-agent
+> and multi-use-case flows are additionally shown against a real local sequencer
+> at `RISC0_DEV_MODE=0` (`docs/DEV_MODE_0_EVIDENCE.md`), since public-testnet block
+> production is intermittent and its state is reset on operator redeploys.
 
 ## FURPS Self-Assessment
 

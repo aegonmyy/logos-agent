@@ -48,7 +48,7 @@ jobs:
       - name: System dependencies
         run: |
           apt-get update
-          apt-get install -y --no-install-recommends clang libssl-dev pkg-config git curl ca-certificates python3-dev
+          apt-get install -y --no-install-recommends clang libssl-dev pkg-config git curl ca-certificates python3-dev libpcsclite-dev
 
       - name: Install RISC0 toolchain
         run: |
