@@ -20,9 +20,15 @@ use wallet::cli::{
 
 async fn new_account(ctx: &mut TestContext, private: bool) -> Result<lee::AccountId> {
     let sub = if private {
-        AccountSubcommand::New(NewSubcommand::Private { cci: None, label: None })
+        AccountSubcommand::New(NewSubcommand::Private {
+            cci: None,
+            label: None,
+        })
     } else {
-        AccountSubcommand::New(NewSubcommand::Public { cci: None, label: None })
+        AccountSubcommand::New(NewSubcommand::Public {
+            cci: None,
+            label: None,
+        })
     };
     let result = wallet::cli::execute_subcommand(ctx.wallet_mut(), Command::Account(sub)).await?;
     let SubcommandReturnValue::RegisterAccount { account_id } = result else {
@@ -40,7 +46,15 @@ async fn owner_approves_denies_and_reconfigures() -> Result<()> {
     let mut ctx = TestContext::new().await?;
 
     let definition = new_account(&mut ctx, false).await?;
-    let agent = Agent::create(ctx.wallet_mut(), SpendingPolicy { per_tx_limit: 30 }).await?;
+    let agent = Agent::create(
+        ctx.wallet_mut(),
+        SpendingPolicy {
+            per_tx_limit: 30,
+            per_period_limit: 0,
+            period_seconds: 86_400,
+        },
+    )
+    .await?;
     let recipient = new_account(&mut ctx, true).await?;
 
     // Fund the agent with 100 tokens.
@@ -65,15 +79,23 @@ async fn owner_approves_denies_and_reconfigures() -> Result<()> {
     let channel = OwnerChannel::open(Arc::clone(&messaging) as Arc<_>, &agent_id, owner);
     let mut runtime = AgentRuntime::new(agent, channel);
 
-    let balance = |ctx: &TestContext, runtime: &AgentRuntime| runtime.agent().balance(ctx.wallet(), definition);
+    let balance = |ctx: &TestContext, runtime: &AgentRuntime| {
+        runtime.agent().balance(ctx.wallet(), definition)
+    };
 
     // (1) Over-limit spend of 50 (> 30): held, request sent to owner.
-    let decision = runtime.propose_send(ctx.wallet_mut(), recipient, 50).await?;
+    let decision = runtime
+        .propose_send(ctx.wallet_mut(), recipient, 50)
+        .await?;
     let SpendDecision::Pending { id: id_a } = decision else {
         bail!("expected the 50-token spend to be held for approval");
     };
     ctx.wallet_mut().sync_to_latest_block().await?;
-    assert_eq!(balance(&ctx, &runtime), 100, "no funds move before approval");
+    assert_eq!(
+        balance(&ctx, &runtime),
+        100,
+        "no funds move before approval"
+    );
 
     // Owner sees the request.
     let requests = owner_view.poll_agent_requests().await?;
@@ -84,20 +106,37 @@ async fn owner_approves_denies_and_reconfigures() -> Result<()> {
     // (2) Owner approves → the spend executes.
     owner_view.decide(&id_a, true).await?;
     let resolved = runtime.process_owner_messages(ctx.wallet_mut()).await?;
-    assert_eq!(resolved, vec![Resolved::Executed { id: id_a, amount: 50 }]);
+    assert_eq!(
+        resolved,
+        vec![Resolved::Executed {
+            id: id_a,
+            amount: 50
+        }]
+    );
     wait_for_block().await;
     ctx.wallet_mut().sync_to_latest_block().await?;
-    assert_eq!(balance(&ctx, &runtime), 50, "approved spend should move funds");
+    assert_eq!(
+        balance(&ctx, &runtime),
+        50,
+        "approved spend should move funds"
+    );
 
     // (3) Over-limit spend of 40, then owner denies → nothing moves.
-    let SpendDecision::Pending { id: id_b } = runtime.propose_send(ctx.wallet_mut(), recipient, 40).await? else {
+    let SpendDecision::Pending { id: id_b } = runtime
+        .propose_send(ctx.wallet_mut(), recipient, 40)
+        .await?
+    else {
         bail!("expected the 40-token spend to be held for approval");
     };
     owner_view.decide(&id_b, false).await?;
     let resolved = runtime.process_owner_messages(ctx.wallet_mut()).await?;
     assert_eq!(resolved, vec![Resolved::Denied { id: id_b }]);
     ctx.wallet_mut().sync_to_latest_block().await?;
-    assert_eq!(balance(&ctx, &runtime), 50, "denied spend must not move funds");
+    assert_eq!(
+        balance(&ctx, &runtime),
+        50,
+        "denied spend must not move funds"
+    );
 
     // (4) Owner raises the limit to 45; the next 40-token spend is autonomous.
     owner_view.configure_limit(45).await?;
@@ -105,11 +144,34 @@ async fn owner_approves_denies_and_reconfigures() -> Result<()> {
     assert_eq!(resolved, vec![Resolved::Reconfigured { per_tx_limit: 45 }]);
     assert_eq!(runtime.agent().policy_limit(), 45);
 
-    let decision = runtime.propose_send(ctx.wallet_mut(), recipient, 40).await?;
-    assert_eq!(decision, SpendDecision::Executed { amount: 40, to: recipient });
+    owner_view.configure_period(60, 86_400).await?;
+    let resolved = runtime.process_owner_messages(ctx.wallet_mut()).await?;
+    assert_eq!(
+        resolved,
+        vec![Resolved::PeriodReconfigured {
+            per_period_limit: 60,
+            period_seconds: 86_400,
+        }]
+    );
+    assert_eq!(runtime.agent().period_policy(), (60, 86_400));
+
+    let decision = runtime
+        .propose_send(ctx.wallet_mut(), recipient, 40)
+        .await?;
+    assert_eq!(
+        decision,
+        SpendDecision::Executed {
+            amount: 40,
+            to: recipient
+        }
+    );
     wait_for_block().await;
     ctx.wallet_mut().sync_to_latest_block().await?;
-    assert_eq!(balance(&ctx, &runtime), 10, "raised limit lets the 40-token spend through");
+    assert_eq!(
+        balance(&ctx, &runtime),
+        10,
+        "raised limit lets the 40-token spend through"
+    );
 
     Ok(())
 }

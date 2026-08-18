@@ -86,7 +86,14 @@ impl AgentSession {
         let account_id: AccountId = account_id
             .parse()
             .map_err(|_| anyhow!("invalid account id"))?;
-        let agent = Agent::from_parts(account_id, SpendingPolicy { per_tx_limit: 0 });
+        let agent = Agent::from_parts(
+            account_id,
+            SpendingPolicy {
+                per_tx_limit: 0,
+                per_period_limit: 0,
+                period_seconds: 86_400,
+            },
+        );
         let mut registry = SkillRegistry::with_defaults();
         registry.register_storage(Arc::new(InMemoryStorage::new([0u8; 32])) as Arc<_>);
         registry.register_messaging(Arc::new(InMemoryMessaging::new()) as Arc<_>);
@@ -128,7 +135,10 @@ unsafe fn read_cstr(ptr: *const c_char) -> Option<String> {
     if ptr.is_null() {
         return None;
     }
-    unsafe { CStr::from_ptr(ptr) }.to_str().ok().map(str::to_owned)
+    unsafe { CStr::from_ptr(ptr) }
+        .to_str()
+        .ok()
+        .map(str::to_owned)
 }
 
 /// Create an offline agent session for `account_id`. Returns null on error; the
@@ -212,7 +222,10 @@ mod tests {
             "messaging.send",
             "meta.configure",
         ] {
-            assert!(names.contains(&expected.to_owned()), "catalogue missing {expected}");
+            assert!(
+                names.contains(&expected.to_owned()),
+                "catalogue missing {expected}"
+            );
         }
     }
 
@@ -234,7 +247,10 @@ mod tests {
         // A storage round-trip through the session proves invoke wiring + the
         // in-memory backend + encryption.
         let uploaded = session
-            .invoke("storage.upload", json!({ "label": "note", "data": "hello" }))
+            .invoke(
+                "storage.upload",
+                json!({ "label": "note", "data": "hello" }),
+            )
             .unwrap();
         let address = uploaded["address"].as_str().unwrap().to_owned();
         let downloaded = session
@@ -244,7 +260,10 @@ mod tests {
 
         // meta.configure changes the live limit through the session.
         session
-            .invoke("meta.configure", json!({ "key": "per_tx_limit", "value": 42 }))
+            .invoke(
+                "meta.configure",
+                json!({ "key": "per_tx_limit", "value": 42 }),
+            )
             .unwrap();
         let status = session.invoke("meta.status", json!({})).unwrap();
         assert_eq!(status["per_tx_limit"], "42");

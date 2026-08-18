@@ -18,6 +18,7 @@ pub mod skills;
 pub mod storage;
 
 use std::sync::{Arc, Mutex};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context as _, Result, bail};
 use lee::AccountId;
@@ -26,7 +27,7 @@ use wallet::{
     WalletCore,
     account::AccountIdWithPrivacy,
     cli::{
-        Command, CliAccountMention, SubcommandReturnValue,
+        CliAccountMention, Command, SubcommandReturnValue,
         account::{AccountSubcommand, NewSubcommand},
         programs::token::TokenProgramAgnosticSubcommand,
     },
@@ -45,6 +46,10 @@ pub struct SpendingPolicy {
     /// Largest amount, in token units, the agent may send in a single
     /// transaction without asking the owner first.
     pub per_tx_limit: u128,
+    /// Aggregate token limit for one spending period. Zero disables it.
+    pub per_period_limit: u128,
+    /// Length of the aggregate spending period in seconds.
+    pub period_seconds: u64,
 }
 
 impl SpendingPolicy {
@@ -78,6 +83,13 @@ pub struct Agent {
     account_id: AccountId,
     policy: Arc<Mutex<SpendingPolicy>>,
     history: Arc<Mutex<Vec<TxRecord>>>,
+    period_spend: Arc<Mutex<PeriodSpend>>,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct PeriodSpend {
+    started_at: u64,
+    amount: u128,
 }
 
 impl Agent {
@@ -111,6 +123,10 @@ impl Agent {
             account_id,
             policy: Arc::new(Mutex::new(policy)),
             history: Arc::new(Mutex::new(Vec::new())),
+            period_spend: Arc::new(Mutex::new(PeriodSpend {
+                started_at: now_seconds(),
+                amount: 0,
+            })),
         }
     }
 
@@ -123,13 +139,33 @@ impl Agent {
     /// The owner-set per-transaction spending limit.
     #[must_use]
     pub fn policy_limit(&self) -> u128 {
-        self.policy.lock().expect("policy lock poisoned").per_tx_limit
+        self.policy
+            .lock()
+            .expect("policy lock poisoned")
+            .per_tx_limit
     }
 
     /// Update the autonomous spending limit. Owner-driven (via `meta.configure`
     /// over the owner channel); never changed by the agent itself.
     pub fn set_policy_limit(&self, per_tx_limit: u128) {
-        self.policy.lock().expect("policy lock poisoned").per_tx_limit = per_tx_limit;
+        self.policy
+            .lock()
+            .expect("policy lock poisoned")
+            .per_tx_limit = per_tx_limit;
+    }
+
+    /// Update the aggregate spending limit and period length.
+    pub fn set_period_policy(&self, per_period_limit: u128, period_seconds: u64) {
+        let mut policy = self.policy.lock().expect("policy lock poisoned");
+        policy.per_period_limit = per_period_limit;
+        policy.period_seconds = period_seconds;
+    }
+
+    /// Return the aggregate spending limit and period length.
+    #[must_use]
+    pub fn period_policy(&self) -> (u128, u64) {
+        let policy = self.policy.lock().expect("policy lock poisoned");
+        (policy.per_period_limit, policy.period_seconds)
     }
 
     /// A snapshot of the agent's recent transactions (`wallet.history`).
@@ -174,6 +210,14 @@ impl Agent {
                 limit,
             });
         }
+        if !self.period_allows(amount) {
+            let (period_limit, _) = self.period_policy();
+            return Ok(SpendOutcome::NeedsOwnerApproval {
+                amount,
+                to: recipient,
+                limit: period_limit,
+            });
+        }
         self.execute_send(wallet, recipient, amount).await?;
         Ok(SpendOutcome::Executed {
             amount,
@@ -216,9 +260,48 @@ impl Agent {
         self.history
             .lock()
             .expect("history lock poisoned")
-            .push(TxRecord { to: recipient, amount });
+            .push(TxRecord {
+                to: recipient,
+                amount,
+            });
+        self.record_period_spend(amount);
         Ok(())
     }
+
+    fn period_allows(&self, amount: u128) -> bool {
+        let (limit, period_seconds) = self.period_policy();
+        if limit == 0 || period_seconds == 0 {
+            return true;
+        }
+        let mut spend = self.period_spend.lock().expect("period lock poisoned");
+        let now = now_seconds();
+        if now.saturating_sub(spend.started_at) >= period_seconds {
+            spend.started_at = now;
+            spend.amount = 0;
+        }
+        spend.amount.saturating_add(amount) <= limit
+    }
+
+    fn record_period_spend(&self, amount: u128) {
+        let (limit, period_seconds) = self.period_policy();
+        if limit == 0 || period_seconds == 0 {
+            return;
+        }
+        let mut spend = self.period_spend.lock().expect("period lock poisoned");
+        let now = now_seconds();
+        if now.saturating_sub(spend.started_at) >= period_seconds {
+            spend.started_at = now;
+            spend.amount = 0;
+        }
+        spend.amount = spend.amount.saturating_add(amount);
+    }
+}
+
+fn now_seconds() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs()
 }
 
 /// Refer to a private account in a wallet CLI command.

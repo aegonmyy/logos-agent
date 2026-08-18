@@ -56,7 +56,11 @@ async fn agent_spends_within_limit_and_holds_above_it() -> Result<()> {
     let definition = new_public_account(&mut ctx).await?;
 
     // Owner spins up the agent with a per-transaction limit of 50 tokens.
-    let policy = SpendingPolicy { per_tx_limit: 50 };
+    let policy = SpendingPolicy {
+        per_tx_limit: 50,
+        per_period_limit: 0,
+        period_seconds: 86_400,
+    };
     let agent = Agent::create(ctx.wallet_mut(), policy).await?;
 
     // A counterparty the agent will pay.

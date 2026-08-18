@@ -29,6 +29,14 @@ struct Args {
     #[arg(long, env = "AGENT_SPENDING_LIMIT", default_value_t = 0)]
     spending_limit: u128,
 
+    /// Aggregate spending limit per period; zero disables it.
+    #[arg(long, env = "AGENT_PERIOD_LIMIT", default_value_t = 0)]
+    period_limit: u128,
+
+    /// Spending period length in seconds.
+    #[arg(long, env = "AGENT_PERIOD_SECONDS", default_value_t = 86_400)]
+    period_seconds: u64,
+
     /// nwaku REST endpoint for Logos Messaging.
     #[arg(
         long,
@@ -60,6 +68,8 @@ async fn main() -> Result<()> {
         &mut wallet,
         SpendingPolicy {
             per_tx_limit: args.spending_limit,
+            per_period_limit: args.period_limit,
+            period_seconds: args.period_seconds,
         },
     )
     .await
@@ -76,8 +86,9 @@ async fn main() -> Result<()> {
         .context("loading persisted agent state")?;
 
     println!(
-        "agent deployed; awaiting owner instructions (spending limit {}, state {}).",
+        "agent deployed; awaiting owner instructions (tx limit {}, period limit {}, state {}).",
         args.spending_limit,
+        args.period_limit,
         args.state_file.display()
     );
     loop {

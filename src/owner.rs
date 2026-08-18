@@ -116,6 +116,23 @@ impl OwnerChannel {
         )
         .await
     }
+
+    /// Owner updates the aggregate spending limit and period length.
+    pub async fn configure_period(
+        &self,
+        per_period_limit: u128,
+        period_seconds: u64,
+    ) -> Result<()> {
+        self.post(
+            &self.to_agent,
+            &json!({
+                "type": "configure_period",
+                "per_period_limit": per_period_limit.to_string(),
+                "period_seconds": period_seconds,
+            }),
+        )
+        .await
+    }
 }
 
 /// What happened to a proposed spend.
@@ -137,6 +154,11 @@ pub enum Resolved {
     Denied { id: String },
     /// The spending limit was changed.
     Reconfigured { per_tx_limit: u128 },
+    /// The aggregate period spending policy was changed.
+    PeriodReconfigured {
+        per_period_limit: u128,
+        period_seconds: u64,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -297,7 +319,9 @@ impl AgentRuntime {
                         .unwrap_or(false);
                     if let Some(spend) = self.pending.remove(&id) {
                         if approve {
-                            self.agent.send_approved(wallet, spend.to, spend.amount).await?;
+                            self.agent
+                                .send_approved(wallet, spend.to, spend.amount)
+                                .await?;
                             resolved.push(Resolved::Executed {
                                 id,
                                 amount: spend.amount,
@@ -316,6 +340,20 @@ impl AgentRuntime {
                         self.agent.set_policy_limit(limit);
                         resolved.push(Resolved::Reconfigured {
                             per_tx_limit: limit,
+                        });
+                    }
+                }
+                Some("configure_period") => {
+                    let limit = message
+                        .get("per_period_limit")
+                        .and_then(Value::as_str)
+                        .and_then(|value| value.parse::<u128>().ok());
+                    let seconds = message.get("period_seconds").and_then(Value::as_u64);
+                    if let (Some(limit), Some(seconds)) = (limit, seconds) {
+                        self.agent.set_period_policy(limit, seconds);
+                        resolved.push(Resolved::PeriodReconfigured {
+                            per_period_limit: limit,
+                            period_seconds: seconds,
                         });
                     }
                 }
@@ -340,7 +378,14 @@ mod tests {
         let account_id: AccountId = "Ds8q5PjLcKwwV97Zi7duhRVF9uwA2PuYMoLL7FwCzsXE"
             .parse()
             .expect("valid account id");
-        Agent::from_parts(account_id, SpendingPolicy { per_tx_limit: 10 })
+        Agent::from_parts(
+            account_id,
+            SpendingPolicy {
+                per_tx_limit: 10,
+                per_period_limit: 0,
+                period_seconds: 86_400,
+            },
+        )
     }
 
     /// A messaging backend whose sends always fail — to exercise notify-retry.
@@ -348,7 +393,11 @@ mod tests {
 
     #[async_trait::async_trait]
     impl Messaging for FailingMessaging {
-        async fn send(&self, _recipient: &str, _message: &[u8]) -> Result<crate::messaging::MessageId> {
+        async fn send(
+            &self,
+            _recipient: &str,
+            _message: &[u8],
+        ) -> Result<crate::messaging::MessageId> {
             anyhow::bail!("network down")
         }
         async fn join(&self, _group_id: &str) -> Result<()> {
@@ -368,13 +417,22 @@ mod tests {
         let _ = std::fs::remove_file(&dir);
         let agent = test_agent();
         let messaging = Arc::new(InMemoryMessaging::new());
-        let channel = OwnerChannel::open(Arc::clone(&messaging) as Arc<_>, &agent.account_id(), "owner");
+        let channel = OwnerChannel::open(
+            Arc::clone(&messaging) as Arc<_>,
+            &agent.account_id(),
+            "owner",
+        );
 
         // First runtime: an over-limit spend is held and persisted.
         {
             let mut runtime = AgentRuntime::with_state(agent, channel, dir.clone()).unwrap();
             let decision = runtime
-                .propose_send_no_wallet("Ds8q5PjLcKwwV97Zi7duhRVF9uwA2PuYMoLL7FwCzsXE".parse().unwrap(), 50)
+                .propose_send_no_wallet(
+                    "Ds8q5PjLcKwwV97Zi7duhRVF9uwA2PuYMoLL7FwCzsXE"
+                        .parse()
+                        .unwrap(),
+                    50,
+                )
                 .await
                 .unwrap();
             assert!(matches!(decision, SpendDecision::Pending { .. }));
@@ -383,9 +441,17 @@ mod tests {
 
         // Second runtime restores the pending spend from disk.
         let agent2 = test_agent();
-        let channel2 = OwnerChannel::open(Arc::clone(&messaging) as Arc<_>, &agent2.account_id(), "owner");
+        let channel2 = OwnerChannel::open(
+            Arc::clone(&messaging) as Arc<_>,
+            &agent2.account_id(),
+            "owner",
+        );
         let restored = AgentRuntime::with_state(agent2, channel2, dir.clone()).unwrap();
-        assert_eq!(restored.pending_ids().len(), 1, "pending spend should survive restart");
+        assert_eq!(
+            restored.pending_ids().len(),
+            1,
+            "pending spend should survive restart"
+        );
 
         let _ = std::fs::remove_file(&dir);
     }
@@ -393,12 +459,24 @@ mod tests {
     #[tokio::test]
     async fn unreachable_owner_means_no_pending_spend() {
         let agent = test_agent();
-        let channel = OwnerChannel::open(Arc::new(FailingMessaging) as Arc<_>, &agent.account_id(), "owner");
+        let channel = OwnerChannel::open(
+            Arc::new(FailingMessaging) as Arc<_>,
+            &agent.account_id(),
+            "owner",
+        );
         let mut runtime = AgentRuntime::new(agent, channel);
         let result = runtime
-            .propose_send_no_wallet("Ds8q5PjLcKwwV97Zi7duhRVF9uwA2PuYMoLL7FwCzsXE".parse().unwrap(), 50)
+            .propose_send_no_wallet(
+                "Ds8q5PjLcKwwV97Zi7duhRVF9uwA2PuYMoLL7FwCzsXE"
+                    .parse()
+                    .unwrap(),
+                50,
+            )
             .await;
-        assert!(result.is_err(), "if the owner can't be reached, propose_send must fail");
+        assert!(
+            result.is_err(),
+            "if the owner can't be reached, propose_send must fail"
+        );
         assert_eq!(runtime.pending_ids().len(), 0, "no spend should be held");
     }
 }
