@@ -61,6 +61,9 @@ change is needed to add a capability. The default skills are:
 - **Messaging** — `messaging.send`, `messaging.join`, `messaging.create_group`
 - **Blockchain** — `wallet.balance`, `wallet.send`
 - **Meta** — `meta.skills`, `meta.status`
+- **A2A** — `agent.card`, `agent.discover`, `agent.task`, `agent.subscribe`,
+  `agent.cancel`; these are stateful coordination operations backed by
+  `A2aProvider`/`A2aClient`, rather than stateless registry calls.
 
 ### Spending threshold
 

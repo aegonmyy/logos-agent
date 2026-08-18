@@ -172,10 +172,27 @@ impl SkillRegistry {
             "name": "meta.configure",
             "description": "Update runtime configuration, e.g. the spending limit.",
             "params": [
-                { "name": "key", "description": "Config key (e.g. per_tx_limit).", "required": true },
+                { "name": "key", "description": "Config key (per_tx_limit, per_period_limit, or period_seconds).", "required": true },
                 { "name": "value", "description": "New value.", "required": true },
             ],
         }));
+        for (name, description) in [
+            ("agent.card", "Return the A2A Agent Card for this agent."),
+            (
+                "agent.discover",
+                "Discover A2A Agent Cards on a Messaging topic.",
+            ),
+            ("agent.task", "Submit a task to a discovered A2A provider."),
+            ("agent.subscribe", "Read A2A task status updates."),
+            ("agent.cancel", "Cancel an in-progress A2A task."),
+        ] {
+            items.push(json!({
+                "name": name,
+                "description": description,
+                "params": [],
+                "requires_stateful_a2a_context": true,
+            }));
+        }
         Value::Array(items)
     }
 
@@ -201,6 +218,8 @@ impl SkillRegistry {
             "meta.status" => Ok(json!({
                 "account_id": ctx.agent.account_id().to_string(),
                 "per_tx_limit": ctx.agent.policy_limit().to_string(),
+                "per_period_limit": ctx.agent.period_policy().0.to_string(),
+                "period_seconds": ctx.agent.period_policy().1,
                 "skill_count": self.skills.len() + 3,
             })),
             "meta.configure" => {
@@ -210,6 +229,18 @@ impl SkillRegistry {
                         let limit = arg_amount(&args, "value")?;
                         ctx.agent.set_policy_limit(limit);
                         Ok(json!({ "status": "configured", "per_tx_limit": limit.to_string() }))
+                    }
+                    "per_period_limit" => {
+                        let limit = arg_amount(&args, "value")?;
+                        let seconds = ctx.agent.period_policy().1;
+                        ctx.agent.set_period_policy(limit, seconds);
+                        Ok(json!({ "status": "configured", "per_period_limit": limit.to_string() }))
+                    }
+                    "period_seconds" => {
+                        let seconds = arg_amount(&args, "value")?;
+                        let limit = ctx.agent.period_policy().0;
+                        ctx.agent.set_period_policy(limit, seconds as u64);
+                        Ok(json!({ "status": "configured", "period_seconds": seconds }))
                     }
                     other => bail!("unknown configuration key: {other}"),
                 }
@@ -560,7 +591,10 @@ impl Skill for ProgramQuery {
         "Read state from a LEZ program by reading a program-owned account."
     }
     fn params(&self) -> Vec<ParamSpec> {
-        vec![ParamSpec::required("account", "Account id whose state to read.")]
+        vec![ParamSpec::required(
+            "account",
+            "Account id whose state to read.",
+        )]
     }
     async fn invoke(&self, ctx: &mut SkillContext<'_>, args: Value) -> Result<Value> {
         let account_id = arg_account(&args, "account")?;
@@ -649,12 +683,17 @@ impl Skill for ProgramDeploy {
         "Deploy a compiled LEZ program binary and return its program id."
     }
     fn params(&self) -> Vec<ParamSpec> {
-        vec![ParamSpec::required("binary_path", "Path to the compiled program ELF.")]
+        vec![ParamSpec::required(
+            "binary_path",
+            "Path to the compiled program ELF.",
+        )]
     }
     async fn invoke(&self, ctx: &mut SkillContext<'_>, args: Value) -> Result<Value> {
         let path = arg_str(&args, "binary_path")?;
-        let bytes = std::fs::read(&path).with_context(|| format!("reading program binary {path}"))?;
-        let program = Program::new(bytes.into()).map_err(|err| anyhow!("invalid program: {err}"))?;
+        let bytes =
+            std::fs::read(&path).with_context(|| format!("reading program binary {path}"))?;
+        let program =
+            Program::new(bytes.into()).map_err(|err| anyhow!("invalid program: {err}"))?;
         let program_id = program.id();
 
         let wallet = ctx

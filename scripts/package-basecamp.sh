@@ -14,6 +14,8 @@
 
 set -euo pipefail
 
+NIX=(nix --extra-experimental-features 'nix-command flakes')
+
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 DIST="$REPO_DIR/dist"
 cd "$REPO_DIR"
@@ -21,12 +23,12 @@ cd "$REPO_DIR"
 mkdir -p "$DIST"
 
 echo "==> Building the core agent module bundle (agent.lgx)"
-nix build .#agent-lgx --out-link "$DIST/.agent-lgx"
+"${NIX[@]}" build .#agent-lgx --out-link "$DIST/.agent-lgx"
 cp -Lf "$DIST"/.agent-lgx/*.lgx "$DIST/agent.lgx" 2>/dev/null \
   || cp -Lf "$(readlink -f "$DIST/.agent-lgx")" "$DIST/agent.lgx"
 
 echo "==> Building the Basecamp owner app bundle (agent_owner.lgx)"
-nix build .#owner-lgx --out-link "$DIST/.owner-lgx"
+"${NIX[@]}" build .#owner-lgx --out-link "$DIST/.owner-lgx"
 cp -Lf "$DIST"/.owner-lgx/*.lgx "$DIST/agent_owner.lgx" 2>/dev/null \
   || cp -Lf "$(readlink -f "$DIST/.owner-lgx")" "$DIST/agent_owner.lgx"
 

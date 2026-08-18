@@ -26,6 +26,10 @@ the provider executes the advertised skill, and the client observes the complete
 result. The task price is declared in the card and is settled through the client
 wallet when a funded testnet wallet is available.
 
+The reproducible A2A payment proof is currently the local standalone-sequencer
+run, not the flaky public payment path. It uses real proofs with
+`RISC0_DEV_MODE=0` and verifies the client/provider token balances after payment.
+
 ## Run
 
 Start Logos Storage v0.3.0 and nwaku, then run:
@@ -44,6 +48,10 @@ the paid workflow is reported as skipped rather than silently claiming payment
 evidence. It must not be described as public-testnet payment evidence unless its
 output includes a successful LEZ transaction and block reference.
 
+Public LEZ transaction inclusion is polled by transaction hash for up to 30 minutes
+with periodic progress output. A newly observed block is not treated as proof that
+the requested transaction was included.
+
 ## Evidence Standard
 
 For a final LP-0008 submission, preserve the complete test output and record:
@@ -53,3 +61,34 @@ For a final LP-0008 submission, preserve the complete test output and record:
 - A2A Agent Card, discovery topic, task ID, lifecycle states, payment transaction,
   and LEZ block.
 - The exact public LEZ endpoint and service versions used.
+
+## A2A Real-Proof Evidence
+
+Run the paid A2A criterion independently from the public service workflow:
+
+```bash
+RISC0_DEV_MODE=0 cargo test --test a2a_two_agents \
+  two_agents_discover_run_task_and_settle_payment -- --nocapture
+```
+
+Verified locally against the standalone LEZ sequencer:
+
+```text
+test two_agents_discover_run_task_and_settle_payment ... ok
+test result: ok. 1 passed; 0 failed
+finished in 152.43s
+```
+
+The test verifies Agent Card publication and discovery, a real LEZ payment,
+`submitted` and `completed` task states, the returned task result, and client and
+provider balances of 90 and 10 respectively. The proof run used
+`RISC0_DEV_MODE=0`.
+
+## Public-Testnet Limitation
+
+The service workflows and public category-agent deployment are reproducible, but
+the current public LEZ sequencer intermittently returns hashes for write
+transactions that never become queryable or appear in the explorer. The harness
+therefore never treats submission as inclusion. The three-workflow public run must
+be rerun when the public write path is healthy before claiming the public-testnet
+illustrative-use-case criterion complete.

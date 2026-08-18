@@ -4,7 +4,6 @@
 //! the payment is a real private transfer on the live chain.
 
 use std::sync::Arc;
-use std::time::Duration;
 
 use anyhow::{Result, bail};
 use logos_agent::a2a::{A2aClient, A2aProvider, TaskState};
@@ -12,7 +11,8 @@ use logos_agent::messaging::InMemoryMessaging;
 use logos_agent::skills::{EchoSkill, SkillRegistry};
 use logos_agent::{Agent, SpendingPolicy};
 use serde_json::json;
-use test_fixtures::{TIME_TO_WAIT_FOR_BLOCK_SECONDS, TestContext, private_mention, public_mention};
+use std::path::PathBuf;
+use test_fixtures::{TestContext, private_mention, public_mention};
 use wallet::cli::{
     Command, SubcommandReturnValue,
     account::{AccountSubcommand, NewSubcommand},
@@ -21,9 +21,15 @@ use wallet::cli::{
 
 async fn new_account(ctx: &mut TestContext, private: bool) -> Result<lee::AccountId> {
     let sub = if private {
-        AccountSubcommand::New(NewSubcommand::Private { cci: None, label: None })
+        AccountSubcommand::New(NewSubcommand::Private {
+            cci: None,
+            label: None,
+        })
     } else {
-        AccountSubcommand::New(NewSubcommand::Public { cci: None, label: None })
+        AccountSubcommand::New(NewSubcommand::Public {
+            cci: None,
+            label: None,
+        })
     };
     let result = wallet::cli::execute_subcommand(ctx.wallet_mut(), Command::Account(sub)).await?;
     let SubcommandReturnValue::RegisterAccount { account_id } = result else {
@@ -32,8 +38,72 @@ async fn new_account(ctx: &mut TestContext, private: bool) -> Result<lee::Accoun
     Ok(account_id)
 }
 
-async fn wait_for_block() {
-    tokio::time::sleep(Duration::from_secs(TIME_TO_WAIT_FOR_BLOCK_SECONDS)).await;
+#[tokio::test]
+async fn a2a_task_ledger_survives_restart() -> Result<()> {
+    let account_id: lee::AccountId = "Ds8q5PjLcKwwV97Zi7duhRVF9uwA2PuYMoLL7FwCzsXE"
+        .parse()
+        .map_err(|_| anyhow::anyhow!("invalid test account"))?;
+    let provider_id: lee::AccountId = "8QCqovq4QLCZBkMToNs1sXmTAX6NCJzicJB3umRuQaeA"
+        .parse()
+        .map_err(|_| anyhow::anyhow!("invalid provider account"))?;
+    let path = PathBuf::from(format!(
+        "/tmp/logos-agent-a2a-ledger-{}.json",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_file(&path);
+    let messaging = Arc::new(InMemoryMessaging::new());
+    {
+        let mut client = logos_agent::a2a::A2aClient::with_state(
+            Agent::from_parts(
+                account_id,
+                SpendingPolicy {
+                    per_tx_limit: 10,
+                    per_period_limit: 0,
+                    period_seconds: 86_400,
+                },
+            ),
+            Arc::clone(&messaging) as Arc<_>,
+            path.clone(),
+        )?;
+        client
+            .run_task_with_payment(
+                &A2aProvider::new(
+                    Agent::from_parts(
+                        provider_id,
+                        SpendingPolicy {
+                            per_tx_limit: 0,
+                            per_period_limit: 0,
+                            period_seconds: 86_400,
+                        },
+                    ),
+                    Arc::clone(&messaging) as Arc<_>,
+                    SkillRegistry::new(),
+                    "provider",
+                    &[("demo.echo", 1)],
+                )
+                .card()
+                .clone(),
+                "demo.echo",
+                json!({}),
+                "local-payment",
+            )
+            .await?;
+    }
+    let restored = logos_agent::a2a::A2aClient::with_state(
+        Agent::from_parts(
+            provider_id,
+            SpendingPolicy {
+                per_tx_limit: 10,
+                per_period_limit: 0,
+                period_seconds: 86_400,
+            },
+        ),
+        messaging,
+        path.clone(),
+    )?;
+    assert_eq!(restored.tracked_ids(), vec!["task-0"]);
+    let _ = std::fs::remove_file(path);
+    Ok(())
 }
 
 const DISCOVERY: &str = "/logos-agent/1/a2a/discovery/proto";
@@ -44,8 +114,24 @@ async fn two_agents_discover_run_task_and_settle_payment() -> Result<()> {
 
     let definition = new_account(&mut ctx, false).await?;
     // Client can spend up to 50 autonomously; provider starts with nothing.
-    let client_agent = Agent::create(ctx.wallet_mut(), SpendingPolicy { per_tx_limit: 50 }).await?;
-    let provider_agent = Agent::create(ctx.wallet_mut(), SpendingPolicy { per_tx_limit: 0 }).await?;
+    let client_agent = Agent::create(
+        ctx.wallet_mut(),
+        SpendingPolicy {
+            per_tx_limit: 50,
+            per_period_limit: 0,
+            period_seconds: 86_400,
+        },
+    )
+    .await?;
+    let provider_agent = Agent::create(
+        ctx.wallet_mut(),
+        SpendingPolicy {
+            per_tx_limit: 0,
+            per_period_limit: 0,
+            period_seconds: 86_400,
+        },
+    )
+    .await?;
 
     // Fund the client with 100 tokens.
     wallet::cli::execute_subcommand(
@@ -58,7 +144,6 @@ async fn two_agents_discover_run_task_and_settle_payment() -> Result<()> {
         }),
     )
     .await?;
-    wait_for_block().await;
 
     let messaging = Arc::new(InMemoryMessaging::new());
 
@@ -86,11 +171,14 @@ async fn two_agents_discover_run_task_and_settle_payment() -> Result<()> {
 
     // Client pays and requests the task — autonomously, no owner involved.
     let task = client
-        .run_task(ctx.wallet_mut(), card, "demo.echo", json!({ "text": "hello" }))
+        .run_task(
+            ctx.wallet_mut(),
+            card,
+            "demo.echo",
+            json!({ "text": "hello" }),
+        )
         .await?;
     assert_eq!(task.state, TaskState::Submitted);
-    wait_for_block().await;
-
     // Provider serves the pending task through the lifecycle.
     let served = provider.serve_pending(None).await?;
     assert_eq!(served, 1, "provider should serve one task");
@@ -99,7 +187,9 @@ async fn two_agents_discover_run_task_and_settle_payment() -> Result<()> {
     let done = client.poll_task(card, &task).await?;
     assert_eq!(done.state, TaskState::Completed, "task should complete");
     assert_eq!(
-        done.result.as_ref().and_then(|value| value["echo"].as_str()),
+        done.result
+            .as_ref()
+            .and_then(|value| value["echo"].as_str()),
         Some("hello"),
         "task result should echo the input"
     );
@@ -127,9 +217,25 @@ async fn canceled_task_is_refunded() -> Result<()> {
     let mut ctx = TestContext::new().await?;
 
     let definition = new_account(&mut ctx, false).await?;
-    let client_agent = Agent::create(ctx.wallet_mut(), SpendingPolicy { per_tx_limit: 50 }).await?;
+    let client_agent = Agent::create(
+        ctx.wallet_mut(),
+        SpendingPolicy {
+            per_tx_limit: 50,
+            per_period_limit: 0,
+            period_seconds: 86_400,
+        },
+    )
+    .await?;
     // Provider can spend nothing autonomously — the refund must bypass the policy.
-    let provider_agent = Agent::create(ctx.wallet_mut(), SpendingPolicy { per_tx_limit: 0 }).await?;
+    let provider_agent = Agent::create(
+        ctx.wallet_mut(),
+        SpendingPolicy {
+            per_tx_limit: 0,
+            per_period_limit: 0,
+            period_seconds: 86_400,
+        },
+    )
+    .await?;
 
     // Fund the client with 100 tokens.
     wallet::cli::execute_subcommand(
@@ -142,7 +248,6 @@ async fn canceled_task_is_refunded() -> Result<()> {
         }),
     )
     .await?;
-    wait_for_block().await;
 
     let messaging = Arc::new(InMemoryMessaging::new());
 
@@ -165,8 +270,6 @@ async fn canceled_task_is_refunded() -> Result<()> {
     let task = client
         .run_task(ctx.wallet_mut(), card, "demo.echo", json!({ "text": "hi" }))
         .await?;
-    wait_for_block().await;
-
     // The payment left the client and reached the provider.
     ctx.wallet_mut().sync_to_latest_block().await?;
     assert_eq!(client.agent().balance(ctx.wallet(), definition), 90);
@@ -177,8 +280,6 @@ async fn canceled_task_is_refunded() -> Result<()> {
     // Provider serves: sees the cancel, refunds the payment, marks it canceled.
     let served = provider.serve_pending(Some(ctx.wallet_mut())).await?;
     assert_eq!(served, 1, "provider should process the cancelled task");
-    wait_for_block().await;
-
     let done = client.poll_task(card, &task).await?;
     assert_eq!(done.state, TaskState::Canceled, "task should be canceled");
 
