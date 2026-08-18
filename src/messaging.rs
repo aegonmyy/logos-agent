@@ -43,7 +43,10 @@ fn group_topic(members: &[String]) -> Topic {
         hasher.update(member.as_bytes());
         hasher.update([0]);
     }
-    format!("/logos-agent/1/group-{}/proto", hex::encode(&hasher.finalize()[..8]))
+    format!(
+        "/logos-agent/1/group-{}/proto",
+        hex::encode(&hasher.finalize()[..8])
+    )
 }
 
 /// In-memory messaging backend: records sent payloads per topic and tracks
@@ -129,14 +132,21 @@ impl Messaging for WakuMessaging {
             payload: BASE64.encode(message),
             content_topic: recipient.to_owned(),
         };
-        self.http
+        let response = self
+            .http
             .post(format!("{}/relay/v1/auto/messages", self.base))
             .json(&body)
             .send()
             .await
-            .context("POST /relay/v1/auto/messages")?
-            .error_for_status()
-            .context("nwaku rejected publish")?;
+            .context("POST /relay/v1/auto/messages")?;
+        if !response.status().is_success() {
+            let status = response.status();
+            let detail = response
+                .text()
+                .await
+                .context("reading nwaku publish error")?;
+            anyhow::bail!("nwaku rejected publish ({status}): {detail}");
+        }
         Ok(hex::encode(Sha256::digest(message)))
     }
 
@@ -159,14 +169,10 @@ impl Messaging for WakuMessaging {
     }
 
     async fn poll(&self, topic: &str) -> Result<Vec<Vec<u8>>> {
-        let encoded: String =
-            url_encode(topic);
+        let encoded: String = url_encode(topic);
         let messages: Vec<WakuMessage> = self
             .http
-            .get(format!(
-                "{}/relay/v1/auto/messages/{encoded}",
-                self.base
-            ))
+            .get(format!("{}/relay/v1/auto/messages/{encoded}", self.base))
             .send()
             .await
             .context("GET /relay/v1/auto/messages")?
