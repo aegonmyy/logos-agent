@@ -14,7 +14,7 @@
 
 use std::sync::Arc;
 
-use anyhow::{Context as _, Result, anyhow, bail};
+use anyhow::{Context as _, Result, anyhow, bail, ensure};
 use lee::AccountId;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -440,6 +440,52 @@ impl A2aClient {
         Ok(task)
     }
 
+    /// Submit a task after an external wallet has settled its payment.
+    ///
+    /// This is useful on networks where public token transfers work but the
+    /// shielded sender proof needed by `run_task` is unavailable. The caller is
+    /// responsible for verifying `payment_tx` before calling this method.
+    pub async fn run_task_with_payment(
+        &mut self,
+        provider: &AgentCard,
+        skill: &str,
+        params: Value,
+        payment_tx: &str,
+    ) -> Result<Task> {
+        let price = provider
+            .price_of(skill)
+            .with_context(|| format!("provider does not offer skill {skill}"))?;
+        ensure!(
+            !payment_tx.is_empty(),
+            "payment transaction must not be empty"
+        );
+        ensure!(
+            provider.lez_account != self.agent.account_id().to_string(),
+            "provider payment account must differ from the client account"
+        );
+        let task_id = format!("task-{}", self.next_task);
+        self.next_task += 1;
+        let request = serde_json::to_vec(&json!({
+            "kind": "task_request",
+            "taskId": task_id,
+            "skill": skill,
+            "params": params,
+            "from": self.agent.account_id().to_string(),
+            "priceLez": price.to_string(),
+            "paymentTx": payment_tx,
+        }))
+        .context("encoding externally paid task request")?;
+        self.messaging.send(&provider.address, &request).await?;
+        let task = Task {
+            id: task_id.clone(),
+            state: TaskState::Submitted,
+            result: None,
+        };
+        self.tasks.insert(task_id, task.clone());
+        self.persist()?;
+        Ok(task)
+    }
+
     /// Read the latest status for `task` from `provider`'s update stream
     /// (`agent.subscribe`). Returns the task advanced to its newest known state
     /// and records that state in the (optionally persisted) ledger.
@@ -456,11 +502,12 @@ impl A2aClient {
             if update.get("taskId").and_then(Value::as_str) != Some(task.id.as_str()) {
                 continue;
             }
-            if let Ok(state) =
-                serde_json::from_value::<TaskState>(update["state"].clone())
-            {
+            if let Ok(state) = serde_json::from_value::<TaskState>(update["state"].clone()) {
                 latest.state = state;
-                latest.result = update.get("result").cloned().filter(|value| !value.is_null());
+                latest.result = update
+                    .get("result")
+                    .cloned()
+                    .filter(|value| !value.is_null());
             }
         }
         self.tasks.insert(latest.id.clone(), latest.clone());
@@ -490,7 +537,14 @@ mod tests {
         let account_id: AccountId = "Ds8q5PjLcKwwV97Zi7duhRVF9uwA2PuYMoLL7FwCzsXE"
             .parse()
             .expect("valid account id");
-        Agent::from_parts(account_id, SpendingPolicy { per_tx_limit: 10 })
+        Agent::from_parts(
+            account_id,
+            SpendingPolicy {
+                per_tx_limit: 10,
+                per_period_limit: 0,
+                period_seconds: 86_400,
+            },
+        )
     }
 
     /// The client's task ledger and next-id counter survive a restart.
