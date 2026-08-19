@@ -17,7 +17,14 @@ async fn storage_and_messaging_skills_round_trip() -> Result<()> {
     let account_id: lee::AccountId = "Ds8q5PjLcKwwV97Zi7duhRVF9uwA2PuYMoLL7FwCzsXE"
         .parse()
         .map_err(|_| anyhow!("invalid account id literal"))?;
-    let agent = Agent::from_parts(account_id, SpendingPolicy { per_tx_limit: 0 });
+    let agent = Agent::from_parts(
+        account_id,
+        SpendingPolicy {
+            per_tx_limit: 0,
+            per_period_limit: 0,
+            period_seconds: 86_400,
+        },
+    );
 
     let storage = Arc::new(InMemoryStorage::new([7u8; 32]));
     let messaging = Arc::new(InMemoryMessaging::new());
@@ -52,7 +59,9 @@ async fn storage_and_messaging_skills_round_trip() -> Result<()> {
             wallet: None,
             agent: &agent,
         };
-        let result = registry.dispatch("storage.list", &mut ctx, json!({})).await?;
+        let result = registry
+            .dispatch("storage.list", &mut ctx, json!({}))
+            .await?;
         let objects = result["objects"].as_array().expect("objects array");
         assert_eq!(objects.len(), 1);
         assert_eq!(objects[0]["label"], "notes");
@@ -142,7 +151,9 @@ async fn storage_and_messaging_skills_round_trip() -> Result<()> {
             wallet: None,
             agent: &agent,
         };
-        let catalogue = registry.dispatch("meta.skills", &mut ctx, json!({})).await?;
+        let catalogue = registry
+            .dispatch("meta.skills", &mut ctx, json!({}))
+            .await?;
         let names: Vec<String> = catalogue
             .as_array()
             .expect("catalogue array")
@@ -158,7 +169,10 @@ async fn storage_and_messaging_skills_round_trip() -> Result<()> {
             "messaging.join",
             "messaging.create_group",
         ] {
-            assert!(names.contains(&expected.to_owned()), "missing skill {expected}");
+            assert!(
+                names.contains(&expected.to_owned()),
+                "missing skill {expected}"
+            );
         }
     }
 

@@ -40,7 +40,15 @@ async fn new_public_account(ctx: &mut TestContext) -> Result<lee::AccountId> {
 #[tokio::test]
 async fn program_deploy_call_and_query_on_a_sequencer() -> Result<()> {
     let mut ctx = TestContext::new().await?;
-    let agent = Agent::create(ctx.wallet_mut(), SpendingPolicy { per_tx_limit: 0 }).await?;
+    let agent = Agent::create(
+        ctx.wallet_mut(),
+        SpendingPolicy {
+            per_tx_limit: 0,
+            per_period_limit: 0,
+            period_seconds: 86_400,
+        },
+    )
+    .await?;
     let registry = SkillRegistry::with_defaults();
 
     // The sample program we will deploy and call.
@@ -53,7 +61,10 @@ async fn program_deploy_call_and_query_on_a_sequencer() -> Result<()> {
 
     // 1) program.deploy — deploy the ELF; the skill returns its program id.
     let deployed = {
-        let mut sctx = SkillContext { wallet: Some(ctx.wallet_mut()), agent: &agent };
+        let mut sctx = SkillContext {
+            wallet: Some(ctx.wallet_mut()),
+            agent: &agent,
+        };
         registry
             .dispatch(
                 "program.deploy",
@@ -66,7 +77,11 @@ async fn program_deploy_call_and_query_on_a_sequencer() -> Result<()> {
         .as_str()
         .expect("deploy should return a program_id")
         .to_owned();
-    assert_eq!(program_id_hex.len(), 64, "program id should be 64 hex chars");
+    assert_eq!(
+        program_id_hex.len(),
+        64,
+        "program id should be 64 hex chars"
+    );
     wait_for_block().await;
 
     // A fresh public account for the program to claim.
@@ -75,7 +90,10 @@ async fn program_deploy_call_and_query_on_a_sequencer() -> Result<()> {
 
     // 2) program.call — invoke the claimer against that account (empty instruction).
     let called = {
-        let mut sctx = SkillContext { wallet: Some(ctx.wallet_mut()), agent: &agent };
+        let mut sctx = SkillContext {
+            wallet: Some(ctx.wallet_mut()),
+            agent: &agent,
+        };
         registry
             .dispatch(
                 "program.call",
@@ -98,7 +116,10 @@ async fn program_deploy_call_and_query_on_a_sequencer() -> Result<()> {
 
     // 3) program.query — read the account; the claimer now owns it.
     let queried = {
-        let mut sctx = SkillContext { wallet: Some(ctx.wallet_mut()), agent: &agent };
+        let mut sctx = SkillContext {
+            wallet: Some(ctx.wallet_mut()),
+            agent: &agent,
+        };
         registry
             .dispatch(
                 "program.query",

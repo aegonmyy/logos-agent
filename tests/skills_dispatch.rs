@@ -43,7 +43,15 @@ async fn skills_are_dispatched_by_name() -> Result<()> {
     let mut ctx = TestContext::new().await?;
 
     let definition = new_account(&mut ctx, false).await?;
-    let agent = Agent::create(ctx.wallet_mut(), SpendingPolicy { per_tx_limit: 50 }).await?;
+    let agent = Agent::create(
+        ctx.wallet_mut(),
+        SpendingPolicy {
+            per_tx_limit: 50,
+            per_period_limit: 0,
+            period_seconds: 86_400,
+        },
+    )
+    .await?;
     let recipient = new_account(&mut ctx, true).await?;
 
     // Fund the agent with 100 tokens.
@@ -76,8 +84,16 @@ async fn skills_are_dispatched_by_name() -> Result<()> {
             .iter()
             .map(|item| item["name"].as_str().unwrap_or_default().to_owned())
             .collect();
-        for expected in ["wallet.balance", "wallet.send", "meta.skills", "meta.status"] {
-            assert!(names.contains(&expected.to_owned()), "missing skill {expected}");
+        for expected in [
+            "wallet.balance",
+            "wallet.send",
+            "meta.skills",
+            "meta.status",
+        ] {
+            assert!(
+                names.contains(&expected.to_owned()),
+                "missing skill {expected}"
+            );
         }
     }
 
@@ -125,7 +141,10 @@ async fn skills_are_dispatched_by_name() -> Result<()> {
                 json!({ "token": definition.to_string() }),
             )
             .await?;
-        assert_eq!(result["balance"], "90", "balance should drop after an autonomous send");
+        assert_eq!(
+            result["balance"], "90",
+            "balance should drop after an autonomous send"
+        );
     }
 
     // wallet.send over the limit — held for owner approval, no funds move.
@@ -157,7 +176,10 @@ async fn skills_are_dispatched_by_name() -> Result<()> {
                 json!({ "token": definition.to_string() }),
             )
             .await?;
-        assert_eq!(result["balance"], "90", "an unapproved over-limit send must not move funds");
+        assert_eq!(
+            result["balance"], "90",
+            "an unapproved over-limit send must not move funds"
+        );
     }
 
     // Unknown skill — dispatch errors rather than silently succeeding.
@@ -166,7 +188,9 @@ async fn skills_are_dispatched_by_name() -> Result<()> {
             wallet: Some(ctx.wallet_mut()),
             agent: &agent,
         };
-        let result = registry.dispatch("does.not.exist", &mut sctx, json!({})).await;
+        let result = registry
+            .dispatch("does.not.exist", &mut sctx, json!({}))
+            .await;
         assert!(result.is_err(), "unknown skill should error");
     }
 

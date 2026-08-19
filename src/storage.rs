@@ -164,7 +164,12 @@ impl Storage for CodexStorage {
             .context("POST /api/storage/v1/data")?
             .error_for_status()
             .context("storage node rejected upload")?;
-        let cid = response.text().await.context("reading CID")?.trim().to_owned();
+        let cid = response
+            .text()
+            .await
+            .context("reading CID")?
+            .trim()
+            .to_owned();
         self.index
             .lock()
             .expect("index lock poisoned")
