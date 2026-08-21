@@ -50,9 +50,11 @@ case "${1:-curated}" in
       "Scenario 2 — Owner control: over-limit spend approved over the owner channel, a later one denied, and the limit reconfigured"
     run_scenario a2a_two_agents \
       "Scenario 3 — Agent marketplace: two agents discover each other and settle a paid task autonomously (A2A + LEZ payment)"
+    run_scenario three_use_cases_local \
+      "Scenario 4 — Three use cases: personal file vault, privacy-preserving notary, and a paid multi-agent task"
     ;;
   all)
-    for t in agent_spending skills_dispatch storage_messaging_skills owner_approval_flow a2a_two_agents; do
+    for t in agent_spending skills_dispatch storage_messaging_skills owner_approval_flow a2a_two_agents three_use_cases_local owner_ffi_e2e three_category_agents; do
       run_scenario "$t" "Running $t"
     done
     ;;

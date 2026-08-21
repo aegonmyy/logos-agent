@@ -12,10 +12,12 @@ name: CI
 # hosted runners), but every dependency is re-fetched and re-compiled from a
 # clean checkout each run — nothing from the host is reused.
 #
-# The clean-build job proves a from-scratch build; the `e2e` job runs an
-# end-to-end integration test against a real local LEZ sequencer (standalone
-# mode, brought up via Docker). The real-node tests (waku_live, codex_live,
-# testnet_live) need external nodes and are evidenced under docs/.
+# The clean-build job proves a from-scratch build; the `e2e` job runs the
+# end-to-end integration tests against a real local LEZ sequencer (standalone
+# mode, brought up via Docker): agent spending, the owner approval flow, the A2A
+# two-agent marketplace, and the three category agents. The real-node tests
+# (waku_live, codex_live, testnet_live) need external nodes and are evidenced
+# under docs/.
 
 on:
   push:
@@ -102,3 +104,18 @@ jobs:
 
       - name: "E2E: agent on a local LEZ sequencer (shielded account, spend, hold)"
         run: cargo test --test agent_spending -- --nocapture --test-threads=1
+
+      - name: "E2E: owner channel (approve, deny, reconfigure over Logos Messaging)"
+        run: cargo test --test owner_approval_flow -- --nocapture --test-threads=1
+
+      - name: "E2E: owner FFI handle (approve/deny/reconfigure through the Basecamp app boundary)"
+        run: cargo test --test owner_ffi_e2e -- --nocapture --test-threads=1
+
+      - name: "E2E: A2A marketplace (discovery, task lifecycle, LEZ payment, refund on cancel)"
+        run: cargo test --test a2a_two_agents -- --nocapture --test-threads=1
+
+      - name: "E2E: three LP-0008 use cases (vault, notary, paid task)"
+        run: cargo test --test three_use_cases_local -- --nocapture --test-threads=1
+
+      - name: "E2E: three category agents (storage, messaging, blockchain)"
+        run: cargo test --test three_category_agents -- --nocapture --test-threads=1
