@@ -4,6 +4,7 @@
 #include <QString>
 #include <QVariantList>
 
+#include "owner_ffi_client.h"
 #include "rep_agent_owner_source.h"
 #include "agent_owner_interface.h"
 #include "LogosViewPluginBase.h"
@@ -12,7 +13,10 @@ class LogosAPI;
 class LogosAPIClient;
 
 // AgentOwnerPlugin bridges the QML RemoteObjects layer with the agent core
-// module. It owns a LogosAPIClient that calls the agent module's methods.
+// module. It owns a LogosAPIClient that calls the agent module's methods for
+// status/skills, and an OwnerFfiClient that holds the owner end of the agent's
+// owner channel over Logos Messaging (Waku) — so approve/deny and limit changes
+// go straight to the agent over messaging, with no intermediary server.
 class AgentOwnerPlugin : public AgentOwnerSimpleSource,
                          public AgentOwnerInterface,
                          public AgentOwnerViewPluginBase
@@ -33,13 +37,19 @@ public:
     // Slots declared in the .rep source.
     void refresh() override;
     QString invokeSkill(QString name, QString argsJson) override;
+    QString pollRequests() override;
+    QString decide(QString requestId, bool approve) override;
+    QString configureLimit(QString limit) override;
+    QString configurePeriod(QString limit, qulonglong seconds) override;
 
 private:
     void ensureClient();
+    void ensureOwnerChannel();
     QString invokeAgent(const QString& method, const QVariantList& args = {});
 
     LogosAPI*       m_api    = nullptr;
     LogosAPIClient* m_client = nullptr;
+    OwnerFfiClient  m_owner;
 };
 
 #endif // AGENT_OWNER_PLUGIN_H

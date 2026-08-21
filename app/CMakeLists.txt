@@ -14,4 +14,6 @@ logos_module(
         src/agent_owner_interface.h
         src/agent_owner_plugin.h
         src/agent_owner_plugin.cpp
+        src/owner_ffi_client.h
+        src/owner_ffi_client.cpp
 )

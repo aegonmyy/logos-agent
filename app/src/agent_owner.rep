@@ -1,5 +1,12 @@
 // RemoteObjects source definition for the Agent Owner view.
 // Properties are pushed to the QML UI; slots are invoked from QML.
+//
+// The status/skills half (agentVersion, skillsJson, refresh, invokeSkill) talks
+// to the agent module over RemoteObjects. The owner-channel half (requestsJson,
+// pollRequests, decide, configureLimit, configurePeriod) drives the agent's
+// approval workflow over Logos Messaging (Waku) directly, with no intermediary
+// server — the owner app loads the agent core and holds the owner end of the
+// channel.
 
 class AgentOwner
 {
@@ -9,6 +16,13 @@ class AgentOwner
     // Catalogue of the agent's skills, as JSON.
     PROP(QString skillsJson READWRITE)
 
+    // Pending approval requests from the agent, as JSON (an array). Updated by
+    // pollRequests().
+    PROP(QString requestsJson READWRITE)
+
+    // Whether the owner channel is open (agent account + messaging configured).
+    PROP(bool channelOpen READWRITE)
+
     // Last error message (empty on success).
     PROP(QString lastErr READWRITE)
 
@@ -17,4 +31,18 @@ class AgentOwner
 
     // Invoke a skill by name with JSON arguments; returns the JSON result.
     SLOT(QString invokeSkill(QString name, QString argsJson))
+
+    // Poll the agent's pending approval requests over Logos Messaging; updates
+    // requestsJson. Returns the requests JSON.
+    SLOT(QString pollRequests())
+
+    // Approve (approve=true) or deny a pending request by id over Logos
+    // Messaging. Returns the JSON result.
+    SLOT(QString decide(QString requestId, bool approve))
+
+    // Set the agent's per-transaction spending limit (decimal string).
+    SLOT(QString configureLimit(QString limit))
+
+    // Set the agent's per-period spending policy (limit decimal string, seconds).
+    SLOT(QString configurePeriod(QString limit, qulonglong seconds))
 }
