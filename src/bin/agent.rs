@@ -77,6 +77,13 @@ async fn main() -> Result<()> {
     let account_id = agent.account_id();
     println!("agent account: {account_id}");
 
+    // Persist the per-period spending accumulator alongside the runtime state,
+    // so a restart cannot reset the owner's period allowance.
+    let period_state = args.state_file.with_extension("period.json");
+    agent
+        .enable_period_persistence(period_state.clone())
+        .context("loading persisted period-spend state")?;
+
     // Open the owner channel over Logos Messaging and run the event loop.
     let messaging = Arc::new(WakuMessaging::new(args.messaging_url));
     let channel = OwnerChannel::open(messaging, &account_id, &args.owner);

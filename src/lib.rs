@@ -17,11 +17,13 @@ pub mod owner;
 pub mod skills;
 pub mod storage;
 
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context as _, Result, bail};
 use lee::AccountId;
+use serde::{Deserialize, Serialize};
 use token_core::TokenHolding;
 use wallet::{
     WalletCore,
@@ -60,6 +62,22 @@ impl SpendingPolicy {
     }
 }
 
+/// The policy verdict for a proposed spend, evaluated *without* moving funds.
+/// Both [`Agent::send`] (the skill / A2A path) and
+/// [`AgentRuntime::propose_send`](crate::owner::AgentRuntime::propose_send)
+/// (the owner-approval path) go through this, so the two enforce the same
+/// per-transaction and per-period limits.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PolicyDecision {
+    /// Within both the per-transaction and per-period limits; the caller may
+    /// execute the transfer.
+    Allow,
+    /// Exceeds the per-transaction limit.
+    OverPerTx { limit: u128 },
+    /// Would exceed the aggregate per-period limit.
+    OverPerPeriod { limit: u128 },
+}
+
 /// What happened when a spend request was run through the policy.
 #[derive(Debug, PartialEq, Eq)]
 pub enum SpendOutcome {
@@ -84,6 +102,11 @@ pub struct Agent {
     policy: Arc<Mutex<SpendingPolicy>>,
     history: Arc<Mutex<Vec<TxRecord>>>,
     period_spend: Arc<Mutex<PeriodSpend>>,
+    /// Where the period-spend accumulator is persisted, if durability is on.
+    /// A restart that re-`enable`s the same path restores the accumulator, so
+    /// the per-period spending limit survives node/network restarts instead of
+    /// resetting to zero.
+    period_state_path: Arc<Mutex<Option<PathBuf>>>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -127,6 +150,7 @@ impl Agent {
                 started_at: now_seconds(),
                 amount: 0,
             })),
+            period_state_path: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -168,6 +192,28 @@ impl Agent {
         (policy.per_period_limit, policy.period_seconds)
     }
 
+    /// Persist the per-period spending accumulator at `path`, restoring any
+    /// previously-saved accumulator first. After this call every recorded spend
+    /// is written through to disk, so a restarted agent keeps its per-period
+    /// spending history instead of starting a fresh (empty) accumulator —
+    /// without this, restarts would let the agent exceed the owner's period
+    /// limit by simply being restarted.
+    pub fn enable_period_persistence(&self, path: PathBuf) -> Result<()> {
+        if path.exists() {
+            let bytes = std::fs::read(&path).context("reading persisted period-spend state")?;
+            let state: PersistedPeriod =
+                serde_json::from_slice(&bytes).context("parsing persisted period-spend state")?;
+            let mut spend = self.period_spend.lock().expect("period lock poisoned");
+            spend.started_at = state.started_at;
+            spend.amount = state.amount;
+        }
+        *self
+            .period_state_path
+            .lock()
+            .expect("period path lock poisoned") = Some(path);
+        Ok(())
+    }
+
     /// A snapshot of the agent's recent transactions (`wallet.history`).
     #[must_use]
     pub fn history(&self) -> Vec<TxRecord> {
@@ -190,6 +236,23 @@ impl Agent {
         }
     }
 
+    /// Evaluate the spending policy for `amount` without moving funds. Returns
+    /// which limit a proposed spend would trip, or [`PolicyDecision::Allow`].
+    /// The per-period check may roll the accumulator's window forward as a side
+    /// effect of reading it, exactly as [`Agent::send`] does before executing.
+    #[must_use]
+    pub fn check_policy(&self, amount: u128) -> PolicyDecision {
+        let per_tx = self.policy_limit();
+        if amount > per_tx {
+            return PolicyDecision::OverPerTx { limit: per_tx };
+        }
+        if !self.period_allows(amount) {
+            let (period_limit, _) = self.period_policy();
+            return PolicyDecision::OverPerPeriod { limit: period_limit };
+        }
+        PolicyDecision::Allow
+    }
+
     /// Send `amount` of `token` to `recipient`, subject to the spending policy.
     ///
     /// Below the limit the transfer is submitted as a privacy-preserving
@@ -202,27 +265,23 @@ impl Agent {
         recipient: AccountId,
         amount: u128,
     ) -> Result<SpendOutcome> {
-        let limit = self.policy_limit();
-        if amount > limit {
-            return Ok(SpendOutcome::NeedsOwnerApproval {
-                amount,
-                to: recipient,
-                limit,
-            });
+        match self.check_policy(amount) {
+            PolicyDecision::Allow => {
+                self.execute_send(wallet, recipient, amount).await?;
+                Ok(SpendOutcome::Executed {
+                    amount,
+                    to: recipient,
+                })
+            }
+            PolicyDecision::OverPerTx { limit }
+            | PolicyDecision::OverPerPeriod { limit } => {
+                Ok(SpendOutcome::NeedsOwnerApproval {
+                    amount,
+                    to: recipient,
+                    limit,
+                })
+            }
         }
-        if !self.period_allows(amount) {
-            let (period_limit, _) = self.period_policy();
-            return Ok(SpendOutcome::NeedsOwnerApproval {
-                amount,
-                to: recipient,
-                limit: period_limit,
-            });
-        }
-        self.execute_send(wallet, recipient, amount).await?;
-        Ok(SpendOutcome::Executed {
-            amount,
-            to: recipient,
-        })
     }
 
     /// Send `amount` to `recipient` bypassing the spending policy. Only call this
@@ -287,14 +346,52 @@ impl Agent {
         if limit == 0 || period_seconds == 0 {
             return;
         }
-        let mut spend = self.period_spend.lock().expect("period lock poisoned");
-        let now = now_seconds();
-        if now.saturating_sub(spend.started_at) >= period_seconds {
-            spend.started_at = now;
-            spend.amount = 0;
-        }
-        spend.amount = spend.amount.saturating_add(amount);
+        let snapshot = {
+            let mut spend = self.period_spend.lock().expect("period lock poisoned");
+            let now = now_seconds();
+            if now.saturating_sub(spend.started_at) >= period_seconds {
+                spend.started_at = now;
+                spend.amount = 0;
+            }
+            spend.amount = spend.amount.saturating_add(amount);
+            *spend
+        };
+        self.persist_period(&snapshot);
     }
+
+    /// Write the accumulator through to disk if persistence is enabled. Best
+    /// effort: the spend has already happened, so a persistence failure is
+    /// logged and never fails the transaction path.
+    fn persist_period(&self, snapshot: &PeriodSpend) {
+        let path = self
+            .period_state_path
+            .lock()
+            .expect("period path lock poisoned")
+            .clone();
+        let Some(path) = path else { return };
+        let state = PersistedPeriod {
+            started_at: snapshot.started_at,
+            amount: snapshot.amount,
+        };
+        match serde_json::to_vec(&state) {
+            Ok(bytes) => {
+                if let Err(error) = std::fs::write(&path, bytes) {
+                    log::warn!(
+                        "could not persist period-spend state to {}: {error}",
+                        path.display()
+                    );
+                }
+            }
+            Err(error) => log::warn!("could not encode period-spend state: {error}"),
+        }
+    }
+}
+
+/// The durable form of the period-spend accumulator.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+struct PersistedPeriod {
+    started_at: u64,
+    amount: u128,
 }
 
 fn now_seconds() -> u64 {
@@ -307,4 +404,68 @@ fn now_seconds() -> u64 {
 /// Refer to a private account in a wallet CLI command.
 fn private_mention(account_id: AccountId) -> CliAccountMention {
     CliAccountMention::Id(AccountIdWithPrivacy::Private(account_id))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_policy() -> SpendingPolicy {
+        SpendingPolicy {
+            per_tx_limit: 1000,
+            per_period_limit: 100,
+            period_seconds: 3600,
+        }
+    }
+
+    fn test_account_id() -> AccountId {
+        "Ds8q5PjLcKwwV97Zi7duhRVF9uwA2PuYMoLL7FwCzsXE"
+            .parse()
+            .expect("valid account id")
+    }
+
+    /// The per-period accumulator must survive a restart: a fresh agent that
+    /// re-enables persistence on the same file inherits the spent amount, so
+    /// restarting cannot be used to reset the period allowance.
+    #[test]
+    fn period_accumulator_survives_restart() {
+        let path = std::env::temp_dir().join(format!("agent-period-{}.json", std::process::id()));
+        let _ = std::fs::remove_file(&path);
+
+        {
+            let agent = Agent::from_parts(test_account_id(), test_policy());
+            agent.enable_period_persistence(path.clone()).unwrap();
+            // Spend 60 of the 100 per-period allowance.
+            agent.record_period_spend(60);
+            assert!(agent.period_allows(40), "60 + 40 = 100 is at the limit");
+            assert!(!agent.period_allows(41), "60 + 41 = 101 exceeds the limit");
+        }
+
+        // A restarted agent restores the persisted accumulator.
+        let agent = Agent::from_parts(test_account_id(), test_policy());
+        agent.enable_period_persistence(path.clone()).unwrap();
+        assert!(
+            !agent.period_allows(50),
+            "60 already spent this period; 50 more must exceed 100"
+        );
+        assert!(agent.period_allows(40), "60 + 40 = 100 is at the limit");
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    /// Without persistence enabled the accumulator is in-memory only, and the
+    /// allowance still rolls over once the period elapses.
+    #[test]
+    fn period_accumulator_resets_after_period_elapses() {
+        let mut policy = test_policy();
+        policy.period_seconds = 1; // one-second window for the test
+        let agent = Agent::from_parts(test_account_id(), policy);
+        agent.record_period_spend(80);
+        assert!(!agent.period_allows(30), "80 + 30 exceeds 100");
+        std::thread::sleep(std::time::Duration::from_millis(1100));
+        assert!(
+            agent.period_allows(80),
+            "after the period elapses the allowance resets"
+        );
+    }
 }
