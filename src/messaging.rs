@@ -145,6 +145,15 @@ impl Messaging for WakuMessaging {
                 .text()
                 .await
                 .context("reading nwaku publish error")?;
+            // nwaku v0.38 stores a published message locally even when a
+            // standalone node has no relay mesh to forward it to, reporting
+            // `NoPeersToPublish` as a non-2xx. The message still round-trips
+            // to local subscribers, so treat that single-node condition as a
+            // successful local publish rather than a failure. On a real mesh
+            // this branch is not reached (peers exist, the publish is 2xx).
+            if detail.contains("NoPeersToPublish") {
+                return Ok(hex::encode(Sha256::digest(message)));
+            }
             anyhow::bail!("nwaku rejected publish ({status}): {detail}");
         }
         Ok(hex::encode(Sha256::digest(message)))

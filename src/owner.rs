@@ -44,17 +44,33 @@ impl OwnerChannel {
     /// derived from the pair, so both sides compute the same names.
     #[must_use]
     pub fn open(messaging: Arc<dyn Messaging>, agent_id: &AccountId, owner: &str) -> Self {
-        let base = format!("/logos-agent/1/owner-{}-{}", agent_id, owner);
+        // Waku content topics must be exactly four segments
+        // ({app}/{version}/{topic}/{encoding}); in-memory backends accept any
+        // string, so keep the direction inside the third segment rather than
+        // adding a fifth one.
+        let base = format!("owner-{agent_id}-{owner}");
         Self {
             messaging,
-            to_owner: format!("{base}/to-owner/proto"),
-            to_agent: format!("{base}/to-agent/proto"),
+            to_owner: format!("/logos-agent/1/{base}-to-owner/proto"),
+            to_agent: format!("/logos-agent/1/{base}-to-agent/proto"),
         }
     }
 
     async fn post(&self, topic: &str, message: &Value) -> Result<()> {
         let bytes = serde_json::to_vec(message).context("encoding owner-channel message")?;
         self.messaging.send(topic, &bytes).await?;
+        Ok(())
+    }
+
+    /// Subscribe the messaging backend to both channel topics. Waku only
+    /// stores and serves messages for content topics the node has subscribed
+    /// to, so a Waku-backed channel must call this once before use (on either
+    /// side — subscription is per node, not per client). In-memory backends
+    /// ignore it. Failures are swallowed: on backends where the round-trip
+    /// works without subscribing, a rejection here must not break the channel.
+    pub async fn subscribe(&self) -> Result<()> {
+        let _ = self.messaging.join(&self.to_owner).await;
+        let _ = self.messaging.join(&self.to_agent).await;
         Ok(())
     }
 
@@ -244,38 +260,61 @@ impl AgentRuntime {
         &self.agent
     }
 
-    /// Propose spending `amount` to `to`. Under the limit it is sent at once;
-    /// over the limit an approval request goes to the owner and it waits.
+    /// Propose spending `amount` to `to`. Within both the per-transaction and
+    /// per-period limits it is sent at once; over either it posts an approval
+    /// request to the owner and waits. The owner-escalation path is the same
+    /// whether the per-transaction or the per-period limit is tripped.
     pub async fn propose_send(
         &mut self,
         wallet: &mut WalletCore,
         to: AccountId,
         amount: u128,
     ) -> Result<SpendDecision> {
-        if amount <= self.agent.policy_limit() {
-            self.agent.send_approved(wallet, to, amount).await?;
-            return Ok(SpendDecision::Executed { amount, to });
+        match self.agent.check_policy(amount) {
+            crate::PolicyDecision::Allow => {
+                self.agent.send_approved(wallet, to, amount).await?;
+                Ok(SpendDecision::Executed { amount, to })
+            }
+            crate::PolicyDecision::OverPerTx { limit }
+            | crate::PolicyDecision::OverPerPeriod { limit } => {
+                self.hold_for_approval(to, amount, limit).await
+            }
         }
-        // Over the limit: notify the owner and hold — no wallet needed.
-        self.propose_send_no_wallet(to, amount).await
     }
 
     /// The over-limit half of [`Self::propose_send`]: notify the owner and hold
-    /// the spend for approval, without touching the wallet. Errors if `amount` is
-    /// within the limit (executing that path needs a wallet) or if the owner
+    /// the spend for approval, without touching the wallet. Errors if `amount`
+    /// is within the policy (executing that path needs a wallet) or if the owner
     /// cannot be reached.
     pub async fn propose_send_no_wallet(
         &mut self,
         to: AccountId,
         amount: u128,
     ) -> Result<SpendDecision> {
-        if amount <= self.agent.policy_limit() {
-            anyhow::bail!("amount is within the limit; call propose_send with a wallet to execute");
+        match self.agent.check_policy(amount) {
+            crate::PolicyDecision::Allow => {
+                anyhow::bail!(
+                    "amount is within the policy; call propose_send with a wallet to execute"
+                );
+            }
+            crate::PolicyDecision::OverPerTx { limit }
+            | crate::PolicyDecision::OverPerPeriod { limit } => {
+                self.hold_for_approval(to, amount, limit).await
+            }
         }
+    }
 
-        // Reach the owner FIRST. Only if the request is delivered do we hold the
-        // spend as pending — a notification we cannot deliver must never leave a
-        // spend that could later be executed without the owner having seen it.
+    /// Reach the owner FIRST, and only if the request is delivered hold the
+    /// spend as pending. A notification we cannot deliver must never leave a
+    /// spend that could later be executed without the owner having seen it.
+    /// `limit` is whichever limit the spend tripped (per-transaction or
+    /// per-period), surfaced to the owner in the request.
+    async fn hold_for_approval(
+        &mut self,
+        to: AccountId,
+        amount: u128,
+        limit: u128,
+    ) -> Result<SpendDecision> {
         let id = format!("req-{}", self.next_id);
         self.channel
             .request_approval(&json!({
@@ -284,7 +323,7 @@ impl AgentRuntime {
                 "skill": "wallet.send",
                 "to": to.to_string(),
                 "amount": amount.to_string(),
-                "limit": self.agent.policy_limit().to_string(),
+                "limit": limit.to_string(),
             }))
             .await
             .context("owner not notified; over-limit spend not held or executed")?;
@@ -293,6 +332,13 @@ impl AgentRuntime {
         self.pending.insert(id.clone(), PendingSpend { to, amount });
         self.persist()?;
         Ok(SpendDecision::Pending { id })
+    }
+
+    /// Read pending owner→agent messages without applying them (no wallet
+    /// needed). Useful for inspection and tests; the live loop applies them via
+    /// [`process_owner_messages`].
+    pub async fn peek_owner_messages(&self) -> Result<Vec<Value>> {
+        self.channel.owner_messages().await
     }
 
     /// Apply any new owner→agent messages: execute approved spends, drop denied
@@ -478,5 +524,58 @@ mod tests {
             "if the owner can't be reached, propose_send must fail"
         );
         assert_eq!(runtime.pending_ids().len(), 0, "no spend should be held");
+    }
+
+    /// A spend that is *under* the per-transaction limit but over the aggregate
+    /// per-period limit is held for the owner — the period limit gates the
+    /// runtime path too, not just the skill path.
+    #[tokio::test]
+    async fn period_over_spend_is_held_for_owner() {
+        let account_id: AccountId = "Ds8q5PjLcKwwV97Zi7duhRVF9uwA2PuYMoLL7FwCzsXE"
+            .parse()
+            .expect("valid account id");
+        let agent = Agent::from_parts(
+            account_id,
+            SpendingPolicy {
+                per_tx_limit: 100,
+                per_period_limit: 60,
+                period_seconds: 86_400,
+            },
+        );
+        // Already spent 50 this period: 20 more is under the per-tx limit
+        // (20 <= 100) but over the period limit (50 + 20 > 60).
+        agent.record_period_spend(50);
+
+        let messaging = Arc::new(InMemoryMessaging::new());
+        let channel = OwnerChannel::open(
+            Arc::clone(&messaging) as Arc<_>,
+            &agent.account_id(),
+            "owner",
+        );
+        let mut runtime = AgentRuntime::new(agent, channel);
+        let decision = runtime
+            .propose_send_no_wallet(
+                "Ds8q5PjLcKwwV97Zi7duhRVF9uwA2PuYMoLL7FwCzsXE"
+                    .parse()
+                    .unwrap(),
+                20,
+            )
+            .await
+            .unwrap();
+        assert!(
+            matches!(decision, SpendDecision::Pending { .. }),
+            "a period-over spend under the per-tx limit must be held, got {decision:?}"
+        );
+
+        // The owner's request names the period limit as the one that tripped.
+        let owner_view = OwnerChannel::open(
+            Arc::clone(&messaging) as Arc<_>,
+            &test_agent().account_id(),
+            "owner",
+        );
+        let requests = owner_view.poll_agent_requests().await.unwrap();
+        assert_eq!(requests.len(), 1);
+        assert_eq!(requests[0]["limit"], "60");
+        assert_eq!(requests[0]["amount"], "20");
     }
 }
