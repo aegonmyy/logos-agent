@@ -70,6 +70,18 @@ terminal goes quiet generating a proof, so you always have something to say.
 > system enforces the rules, and the chain settles it. Take that away and you're
 > back to asking permission from somebody's server.
 
+**[IF INDEXER ERRORS SCROLL PAST — `InvalidPrivacyPreservingProof`, `Parked at block 7` — point at them, don't skip them]**
+
+> Now, you'll notice these red errors — the indexer, which is a separate indexing
+> service in this local stack, chokes on one of the early privacy-preserving
+> proofs and stops indexing. I want to be straight about it: it doesn't affect
+> anything you're watching. The sequencer is the chain here — it's what accepts
+> and includes the transactions, and it's what the agent reads its confirmed
+> state from. Every transfer still lands, every balance still checks out. The
+> indexer just goes stale for the rest of the run, and nothing in this demo
+> depends on it. Why it rejects a proof the sequencer accepted — I haven't
+> diagnosed that, and I'd rather say so than guess.
+
 **[SAY when Scenario 1 finishes — `test result: ok` — short]**
 
 > And there it is — passed. You can see it spent what was under the limit, and it

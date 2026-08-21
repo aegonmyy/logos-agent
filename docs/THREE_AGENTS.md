@@ -44,12 +44,19 @@ the live local sequencer:
 All three are additionally demonstrated together in one run by
 `tests/three_category_agents.rs`: three separate agents are deployed (each mints
 its own shielded account), and each exercises its category against the live local
-sequencer. Result: `test result: ok. 1 passed` (finished in 223.54s).
+sequencer. Result: `test result: ok. 1 passed` (finished in 223.54s — a runtime
+consistent with the fast lane rather than real proofs, since a single
+`RISC0_DEV_MODE=0` transaction takes minutes; the recorded real-proof evidence is
+below).
 
 The Blockchain agent's flow is additionally proven with **real proofs**
-(`RISC0_DEV_MODE=0`) in [`DEV_MODE_0_EVIDENCE.md`](DEV_MODE_0_EVIDENCE.md).
+(`RISC0_DEV_MODE=0`) in [`DEV_MODE_0_EVIDENCE.md`](DEV_MODE_0_EVIDENCE.md), and
+the curated three-scenario demo runs at `RISC0_DEV_MODE=0` in
+`recordings/logos-agent-real-proof.cast`.
 
-> Note on testnet: the public LEZ testnet was reset for v0.2.0. As with our
-> LP-0017 submission, deployments are demonstrated against a real local sequencer
-> at `RISC0_DEV_MODE=0`; the deployment steps above are identical for the public
-> testnet once its endpoint is configured in the wallet environment.
+> Note on testnet: the public LEZ testnet is currently v0.2.4 (the client matches
+> since the `v0.2.4` dependency bump). Deployments above run against a real local
+> sequencer; the same steps target the public testnet once its endpoint is
+> configured in the wallet environment, and the public-testnet variant of this
+> evidence is recorded in
+> [`THREE_TESTNET_AGENTS.md`](THREE_TESTNET_AGENTS.md).

@@ -69,3 +69,53 @@ through transient outages.)
 > account pages above are valid for the deployment they were produced against;
 > the reproducible test regenerates equivalent evidence against whatever testnet
 > is live.
+
+## Re-verified 2026-08-21 (public testnet alive, write path confirmed)
+
+The public testnet was re-checked on 2026-08-21 and is currently **producing
+blocks and including transactions** — the earlier "public write path is down"
+limitation is stale as of this date. Fresh `RISC0_DEV_MODE=0` (real-proof)
+activity from this date:
+
+- **Token mint, included on-chain:** transaction
+  `5c4c09ca5de158d3f7109326a1e699734784d2e64e3da0e8472176ce4bc03405`,
+  included in **block 17716**; the holder balance read back as 100. (From
+  `tests/testnet_tx.rs`, which mints `TESTNET-COIN` and transfers 10 to a
+  second account.)
+- **Three category agents deployed:** three distinct shielded identities
+  (storage / messaging / blockchain) created against the public testnet and
+  synced to block 17716 — see the "Re-verified 2026-08-21" run in
+  [`THREE_TESTNET_AGENTS.md`](THREE_TESTNET_AGENTS.md).
+- **All three use cases anchored by included mints** (from
+  `tests/three_use_cases.rs` with `SERVICE_BACKEND=memory`, which runs the
+  storage/messaging round-trips over in-memory backends while every on-chain
+  anchor is a live public-testnet transaction):
+  - **Personal file vault** — `LP0008-Vault` mint
+    `73d9dc70f12ab443bd0f458c6504f8392671f281b54f56913d710b67dd722039`,
+    included in **block 17791**; storage CID
+    `f47887f3f7bc3ffaf6f927f1b53db65380268c4e61aaf7814a023fa6054a8b34`.
+  - **Privacy-preserving notary** — `LP0008-Notary` mint
+    `9b70fb96de6dba41212d2f1c46ef274b3a93e17845c341ca8ffb1f2d5c1bb924`,
+    included in **block 17792**; notary digest
+    `5999d285f64e95b7d4f1246a112d45535e852676d06f14530900876f4638a42a`,
+    storage CID
+    `f35efd1f863e54dbe27914970cfd8abbfef8036199d8da8d6cd26b2718853df4`.
+  - **On-chain event alerter** — `LP0008-EventAlert` mint
+    `6fb084d33e4933a47c9e1998be0e206aba64cd372b05fdf6b84b4ff1b33166b5`,
+    included in **block 17793**.
+  All three mints are real, proof-backed, included on-chain transactions; the
+  test passed in 148s.
+
+**Known limitation, stated plainly:** on this date the public testnet includes
+token **mints** reliably but did not include token **transfers** within the
+30-minute polling window in any run (the `testnet_tx` transfer and the paid-A2A
+payment transfer both timed out as submitted-but-not-included). The mints above
+are real, proof-backed, included on-chain transactions; the transfer leg is
+best-effort in the test harness (bounded wait, reported as `submitted_not_included`
+when not included) so a use case completes on its included mint anchor rather
+than hanging. The A2A *payment* criterion is therefore evidenced on the local
+standalone sequencer (real proofs, balances 90/10 — see
+[`THREE_USE_CASES.md`](THREE_USE_CASES.md)), not on the public testnet transfer
+path. Why transfers specifically do not include while mints do is not diagnosed;
+no guess is offered. Re-run when the public write path is healthier to upgrade
+pending anchors.

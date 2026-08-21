@@ -21,7 +21,17 @@ Bring up nwaku (e.g. the delivery docker-compose) on `127.0.0.1:8645`, then:
 ## Wallet against the live public LEZ testnet
 
 `tests/testnet_live.rs` points an agent wallet at the public LEZ testnet
-sequencer and reads its chain height:
+sequencer and reads its chain height. It defaults to the official endpoint
+`https://testnet.lez.logos.co` (LEZ v0.2.4), overridable with
+`AGENT_TESTNET_URL`:
+
+```bash
+cargo test --test testnet_live -- --ignored --nocapture
+```
+
+The block read recorded below was captured against an earlier community endpoint
+(`https://seq-testnet.paradox.computer`, LEZ v0.2.0), before the test was
+retargeted at the official v0.2.4 testnet:
 
 ```
 Latest block is 3
@@ -30,9 +40,11 @@ live testnet latest block id: 3
 test result: ok. 1 passed
 ```
 
-The sequencer endpoint used is `https://seq-testnet.paradox.computer` (LEZ
-v0.2.0). The public testnet is intermittently available; when it is up, the agent
-wallet reaches it and reads real chain state.
+That established the wallet reaches a live sequencer and reads real chain state.
+For a current, proof-backed on-chain transaction on the official v0.2.4 testnet
+(a token mint to the agent's own account), see
+[`TESTNET_EVIDENCE.md`](TESTNET_EVIDENCE.md). The public testnet is
+intermittently available; the test retries through transient outages.
 
 ## Storage against a real Logos Storage (Codex) node
 

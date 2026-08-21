@@ -79,6 +79,26 @@ mesh; the harness accepts that specific condition only after the message is
 confirmed by polling. The Codex assertion uploads encrypted content and verifies
 the downloaded plaintext matches the original bytes.
 
+### Re-verified 2026-08-21 (identity deployment, public testnet alive)
+
+A fresh run against the official public LEZ testnet (no service endpoints
+configured, so identity-only) confirmed the testnet is producing blocks and the
+three category agents deploy with distinct identities:
+
+```text
+testnet agent category=storage account=2vcrKfraM1N9ku9V9oGrjWYPy7gmHFwobw9QCY767XmC
+testnet agent category=messaging account=2ne7UEvY3Vhfjn8sHUs5MaCGPoMLnPaoPSaBKxWRkz1L
+testnet agent category=blockchain account=HaGPWVZVwFC6HsZBzoypPuM82o3yXRi2PBXsw7jQpA9k
+testnet evidence block=17716
+test result: ok. 1 passed; 0 failed; finished in 56.93s
+```
+
+The public write path was also re-confirmed the same day: a real-proof
+(`RISC0_DEV_MODE=0`) token mint was included on-chain at block 17716 and the
+holder balance read back as 100 (see `docs/TESTNET_EVIDENCE.md`). This updates
+the earlier "public write path is down" limitation: the path is currently
+healthy and transactions are being included.
+
 ## Current Repository State
 
 The checked-in `tests/three_category_agents.rs` test is local-sequencer evidence

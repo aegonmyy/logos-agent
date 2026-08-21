@@ -59,20 +59,28 @@ change is needed to add a capability. The default skills are:
 
 - **Storage** — `storage.upload`, `storage.download`, `storage.list`, `storage.share`
 - **Messaging** — `messaging.send`, `messaging.join`, `messaging.create_group`
-- **Blockchain** — `wallet.balance`, `wallet.send`
-- **Meta** — `meta.skills`, `meta.status`
+- **Blockchain** — `wallet.balance`, `wallet.send`, `wallet.history`,
+  `program.query`, `program.call`, `program.deploy`
+- **Meta** — `meta.skills`, `meta.status`, `meta.configure`
 - **A2A** — `agent.card`, `agent.discover`, `agent.task`, `agent.subscribe`,
   `agent.cancel`; these are stateful coordination operations backed by
-  `A2aProvider`/`A2aClient`, rather than stateless registry calls.
+  `A2aProvider`/`A2aClient`, rather than stateless registry calls. `agent.card`
+  returns a signed card (see A2A coordination).
 
 ### Spending threshold
 
-`Agent::send` compares the amount against the owner's per-transaction limit.
-Within the limit it submits the transfer. Over the limit it returns
-`NeedsOwnerApproval` and moves nothing. The `AgentRuntime` turns that into a
-message on the owner channel and holds the spend in a pending map until the owner
-replies `approve` or `deny`; an approval releases the transfer, a denial drops it.
-The owner can also raise or lower the limit at runtime over the same channel.
+`Agent::send` checks two owner-set limits. The per-transaction limit gates a
+single transfer; the per-period limit gates the aggregate spent within a rolling
+window (`per_period_limit` tokens over `period_seconds`). Within both it submits
+the transfer. Over either it returns `NeedsOwnerApproval` and moves nothing. The
+`AgentRuntime` turns that into a message on the owner channel and holds the spend
+in a pending map until the owner replies `approve` or `deny`; an approval releases
+the transfer, a denial drops it. The owner can also raise or lower either limit at
+runtime over the same channel (`configure_limit`, `configure_period`).
+
+The per-period accumulator is persisted, so restarting the agent does not reset
+the period allowance: the headless binary writes it next to its state file, and
+`A2aClient::with_state` does the same so task payments count across restarts.
 
 An owner-approved over-limit spend is the only path that bypasses the limit, via
 `Agent::send_approved`, which callers other than the approval flow should not use.
@@ -92,6 +100,16 @@ Tasks move through the A2A lifecycle (`submitted → working → completed | fai
 A provider serves tasks by dispatching the requested skill through its own
 `SkillRegistry`, so any registered skill can be sold.
 
+Each card is a **signed** document: the publisher signs the card's canonical JSON
+with an Ed25519 key and embeds the verifying key alongside the signature, and
+`AgentCard::verify` rejects tampered cards (a changed price, a swapped payment
+account). Shielded LEZ accounts cannot produce message signatures (their
+nullifier/viewing keys generate ZK proofs; the wallet's `sign_message` covers
+public accounts and keycards), so the card key is self-certifying: pin it once
+over a channel you trust (the owner channel) and later cards under the same
+`signingPubkey` verify. Deployments that need a stable key across restarts use
+`A2aProvider::new_with_signing_key` with a persisted key.
+
 ## Security model
 
 - The agent signs with its own shielded key; the owner's keys are never on the
@@ -105,10 +123,25 @@ A provider serves tasks by dispatching the requested skill through its own
 
 ### Known limitations
 
-- Task cancellation currently notifies the provider but does not yet automate the
-  refund.
-- `program.query`, `program.call`, `program.deploy`, and `wallet.history` are on
-  the roadmap on top of the same wallet primitives.
+- The Agent Card signature is self-certifying: it proves a card was not tampered
+  and that repeat cards come from the same key, but it does not bind the signing
+  key to the shielded LEZ account (shielded keys cannot message-sign). Pin the
+  key once over a trusted channel before relying on it.
+- The Logos Core module loads an offline session: reflective, storage, and
+  messaging skills run through the runtime, but the wallet-backed on-chain
+  skills are not yet driven through the module session.
+- The Basecamp owner app's owner-channel FFI is implemented, unit-tested, and
+  verified across the C ABI (a standalone harness dlopens `liblogos_agent.so`
+  and exercises every owner-channel symbol), and the Qt module builds with the
+  Logos module builder (`nix build .#owner-install`). A runtime approve/deny
+  pass against a live agent + Waku node is still needed for full evidence.
+- In the recorded real-proof run, the standalone stack's indexer rejects a
+  privacy-preserving proof while re-applying an early block and stops indexing
+  for the rest of the run. Transaction inclusion and the agent's confirmed state
+  are unaffected (the agent reads the sequencer, not the indexer); see
+  `docs/DEV_MODE_0_EVIDENCE.md` for what is and is not established.
+- No AI model is bundled; the skill interface is model-agnostic and inference is
+  left to the deployer (out of scope per the prize).
 
 ## Running
 
@@ -122,15 +155,19 @@ limit, and an owner channel, then runs its event loop:
 export LEE_WALLET_HOME_DIR=/path/to/wallet     # wallet + sequencer connection
 agent --owner <owner-identity> \               # who approves over-limit spends
       --spending-limit 50 \                     # autonomous per-tx limit (tokens)
+      --period-limit 500 \                      # aggregate spend per period (0 = off)
+      --period-seconds 86400 \                  # period length (default: a day)
       --messaging-url http://127.0.0.1:8645 \   # nwaku REST (Logos Messaging)
-      --state-file agent-state.json             # pending approvals persist here
+      --state-file agent-state.json             # pending approvals + period state persist here
 ```
 
 On start it prints the agent's shielded account id (fund it from any wallet) and
 then waits for owner instructions. All flags also read from env vars
-(`AGENT_OWNER`, `AGENT_SPENDING_LIMIT`, `AGENT_MESSAGING_URL`,
-`AGENT_STATE_FILE`). The `--state-file` is what makes pending approvals survive a
-restart: on relaunch the agent reloads any spends still awaiting the owner.
+(`AGENT_OWNER`, `AGENT_SPENDING_LIMIT`, `AGENT_PERIOD_LIMIT`,
+`AGENT_PERIOD_SECONDS`, `AGENT_MESSAGING_URL`, `AGENT_STATE_FILE`). The
+`--state-file` is what makes pending approvals survive a restart: on relaunch the
+agent reloads any spends still awaiting the owner, and the per-period
+accumulator alongside it so restarts cannot reset the period allowance.
 
 ### 2. Owner interaction (CLI)
 
@@ -149,10 +186,11 @@ for req in channel.poll_agent_requests().await? {
     println!("agent requests: {req}");            // { id, skill, to, amount, limit }
 }
 
-// Approve or deny by request id, or change the limit — all over Logos Messaging:
+// Approve or deny by request id, or change the limits — all over Logos Messaging:
 channel.decide("req-0", true).await?;             // approve
 channel.decide("req-1", false).await?;            // deny
-channel.configure_limit(75).await?;               // raise the autonomous limit
+channel.configure_limit(75).await?;               // raise the per-tx limit
+channel.configure_period(500, 86_400).await?;     // set the per-period limit + window
 ```
 
 The agent applies these on its next poll and prints the resolution
@@ -162,8 +200,23 @@ The agent applies these on its next poll and prints the resolution
 
 The same owner channel is surfaced as a Basecamp mini-app (`app/`, package
 `agent_owner`) so the owner can act from any Logos app instance holding their
-keys — no server. It shows the agent's status and skills and lists pending
-spend requests with approve / deny controls.
+keys — no server. It shows the agent's status and skills, lists pending spend
+requests with approve / deny controls, and lets the owner raise the per-tx and
+per-period limits at runtime.
+
+The owner app holds the **owner end** of the owner channel directly: it loads
+the Rust core (`liblogos_agent.so`) and opens the channel over Logos Messaging
+(Waku) — the same two topics the agent derives — so approve/deny and limit
+changes go straight to the agent over messaging, with no intermediary server.
+The agent side runs in the headless `agent` binary. Configure the owner app with
+the agent it owns and the messaging node both sides share:
+
+```bash
+export LOGOS_AGENT_FFI_PATH=/abs/path/to/liblogos_agent.so
+export LOGOS_AGENT_ACCOUNT_ID=<the agent's shielded account id>
+export LOGOS_AGENT_OWNER_ID=<owner-identity>
+export AGENT_MESSAGING_URL=http://127.0.0.1:8645   # the same Waku REST node the agent uses
+```
 
 Build the loadable assets and distributable bundles:
 
@@ -185,11 +238,24 @@ logoscore --config-dir "$LC" load-module agent
 logoscore --config-dir "$LC" load-module agent_owner
 ```
 
+The owner-channel Rust FFI (`logos_agent_owner_channel_new` /
+`_poll` / `_decide` / `_configure_limit` / `_configure_period` / `_free` in
+`src/ffi.rs`) is unit-tested in-process and verified across the C ABI; the QML
+approve/deny UI builds with the Logos module builder. A runtime approve/deny
+pass against a live agent + Waku node is still needed for full evidence.
+
 ### 4. End-to-end demo
 
 `scripts/demo.sh` runs the full flow against a local sequencer with real proofs
 (`RISC0_DEV_MODE=0`) — the on-screen proof generation is the evidence dev mode is
 off. See the script header for what it exercises.
+
+## Compute-unit costs
+
+On-chain operation costs are measured, not estimated: a token transfer (the
+agent's spend and A2A payment path) is **127,726 compute units**, ~0.4% of LEZ's
+32M public-execution budget; a mint is 116,862 CU. Full table and the
+measurement method are in [`docs/CU_COSTS.md`](docs/CU_COSTS.md).
 
 ## Tests
 
@@ -207,7 +273,18 @@ RISC0_DEV_MODE=0 cargo test -p logos_agent   # real proofs, as evaluated
 | `skills_dispatch` | skills invoked by name through the registry |
 | `storage_messaging_skills` | file encryption round-trip and message delivery |
 | `owner_approval_flow` | approve / deny / reconfigure over the owner channel |
+| `owner_ffi_e2e` | the same over the FFI owner handle (the Basecamp app boundary), with on-chain execution |
 | `a2a_two_agents` | discovery, task lifecycle, autonomous LEZ payment |
+| `three_use_cases_local` | the three use cases end-to-end (vault, notary, paid task) |
+| `three_category_agents` | three agents, one per skill category, each with its own identity |
+| `owner_ffi_waku` | the FFI owner run with real Waku as the transport (agent and owner each run their own nwaku client), spend still executing on-chain; ignored, needs an nwaku node |
+
+Further suites are ignored by default because they need external services:
+`three_use_cases` (Codex/nwaku, or `SERVICE_BACKEND=memory` for public-testnet
+anchors) and the `*_live` tests (running Codex/Waku nodes, including
+`owner_ffi_waku`, which needs an nwaku node on `127.0.0.1:8645` with
+`--cluster-id=2` plus the local sequencer). See
+`docs/THREE_USE_CASES.md`.
 
 ## License
 
