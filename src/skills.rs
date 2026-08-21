@@ -177,7 +177,7 @@ impl SkillRegistry {
             ],
         }));
         for (name, description) in [
-            ("agent.card", "Return the A2A Agent Card for this agent."),
+            ("agent.card", "Return this agent's signed A2A Agent Card."),
             (
                 "agent.discover",
                 "Discover A2A Agent Cards on a Messaging topic.",

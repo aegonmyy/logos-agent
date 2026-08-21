@@ -3,10 +3,12 @@
 //! This is an [A2A](https://a2a-protocol.org)-compatible coordination layer with
 //! two Logos-native substitutions: the transport is Logos Messaging (Waku
 //! topics) rather than HTTP, and payment is a LEZ token transfer rather than an
-//! out-of-band arrangement A2A leaves open. Agents publish an **Agent Card**
-//! describing their skills and per-task price, discover each other on a shared
-//! topic, and run tasks through the A2A **task lifecycle**
+//! out-of-band arrangement A2A leaves open. Agents publish a **signed Agent
+//! Card** describing their skills and per-task price, discover each other on a
+//! shared topic, and run tasks through the A2A **task lifecycle**
 //! (`submitted → working → completed/failed`), paying autonomously on request.
+//! Each card is Ed25519-signed by its publisher and embeds the verifying key,
+//! so a tampered or mis-attributed card fails [`AgentCard::verify`].
 //!
 //! [`A2aProvider`] advertises skills and serves tasks from its
 //! [`SkillRegistry`](crate::skills::SkillRegistry); [`A2aClient`] discovers
@@ -15,6 +17,7 @@
 use std::sync::Arc;
 
 use anyhow::{Context as _, Result, anyhow, bail, ensure};
+use ed25519_dalek::{Signer as _, Verifier as _};
 use lee::AccountId;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -55,6 +58,16 @@ pub struct Capabilities {
 
 /// An A2A-compatible Agent Card, extended with the LEZ payment account and a
 /// Logos Messaging address in place of A2A's HTTP `url`.
+///
+/// The card is a **signed** document (LP-0008): `signing_pubkey` carries the
+/// agent's Ed25519 verifying key and `signature` is an Ed25519 signature over
+/// the card's canonical JSON (the same document with `signature` absent). The
+/// key is self-certifying — it is generated per agent and embedded in the very
+/// document it signs — because a shielded LEZ account's nullifier/viewing keys
+/// produce ZK proofs, not message signatures, and the wallet's `sign_message`
+/// only covers public accounts and keycards. A verifier that obtains the card
+/// over an authenticated channel once (e.g. the owner channel) can then trust
+/// every later card carrying the same `signing_pubkey`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentCard {
     #[serde(rename = "protocolVersion")]
@@ -69,6 +82,13 @@ pub struct AgentCard {
     pub lez_account: String,
     pub capabilities: Capabilities,
     pub skills: Vec<CardSkill>,
+    /// Hex-encoded Ed25519 verifying key certifying this card.
+    #[serde(rename = "signingPubkey", default)]
+    pub signing_pubkey: String,
+    /// Hex-encoded Ed25519 signature over this card's canonical JSON (with the
+    /// `signature` field absent). `None` on legacy unsigned cards.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub signature: Option<String>,
 }
 
 impl AgentCard {
@@ -78,6 +98,58 @@ impl AgentCard {
             .iter()
             .find(|skill| skill.id == skill_id)
             .and_then(|skill| skill.price_lez.parse().ok())
+    }
+
+    /// The canonical byte string a card signature commits to: the card's JSON
+    /// with the `signature` field absent. Field order is the struct's, so
+    /// serialization is deterministic.
+    fn canonical_bytes(&self) -> Result<Vec<u8>> {
+        let unsigned = Self {
+            signature: None,
+            ..self.clone()
+        };
+        serde_json::to_vec(&unsigned).context("encoding agent card for signing")
+    }
+
+    /// Sign this card with `signing_key`, filling in `signing_pubkey` and
+    /// `signature`.
+    fn sign_with(&mut self, signing_key: &ed25519_dalek::SigningKey) -> Result<()> {
+        self.signing_pubkey = hex::encode(signing_key.verifying_key().as_bytes());
+        let bytes = self.canonical_bytes()?;
+        let signature = signing_key.sign(&bytes);
+        self.signature = Some(hex::encode(signature.to_bytes()));
+        Ok(())
+    }
+
+    /// Whether the card's signature is present and valid over its canonical
+    /// JSON under its embedded verifying key. Unsigned or tampered cards
+    /// return `false`.
+    #[must_use]
+    pub fn verify(&self) -> bool {
+        let Some(signature_hex) = &self.signature else {
+            return false;
+        };
+        let Ok(pubkey_bytes) = hex::decode(&self.signing_pubkey) else {
+            return false;
+        };
+        let Ok(signature_bytes) = hex::decode(signature_hex) else {
+            return false;
+        };
+        let Ok(pubkey): Result<[u8; 32], _> = pubkey_bytes.try_into() else {
+            return false;
+        };
+        let Ok(signature): Result<[u8; 64], _> = signature_bytes.try_into() else {
+            return false;
+        };
+        let Ok(verifying_key) = ed25519_dalek::VerifyingKey::from_bytes(&pubkey) else {
+            return false;
+        };
+        let Ok(canonical) = self.canonical_bytes() else {
+            return false;
+        };
+        verifying_key
+            .verify(&canonical, &ed25519_dalek::Signature::from_bytes(&signature))
+            .is_ok()
     }
 }
 
@@ -104,17 +176,38 @@ pub struct A2aProvider {
     messaging: Arc<dyn Messaging>,
     registry: SkillRegistry,
     card: AgentCard,
+    /// The card's signing key, kept so deployments can persist it and keep a
+    /// stable `signing_pubkey` across restarts.
+    signing_key: ed25519_dalek::SigningKey,
 }
 
 impl A2aProvider {
     /// Build a provider that advertises `advertised` skills (by id, with a LEZ
-    /// price) served from `registry`.
+    /// price) served from `registry`. The Agent Card is signed with a freshly
+    /// generated Ed25519 key; use [`A2aProvider::new_with_signing_key`] when the
+    /// key must stay stable across restarts.
     pub fn new(
         agent: Agent,
         messaging: Arc<dyn Messaging>,
         registry: SkillRegistry,
         name: impl Into<String>,
         advertised: &[(&str, u128)],
+    ) -> Self {
+        let signing_key = ed25519_dalek::SigningKey::generate(&mut rand::rngs::OsRng);
+        Self::new_with_signing_key(agent, messaging, registry, name, advertised, signing_key)
+    }
+
+    /// [`A2aProvider::new`], but the card is signed with `signing_key`. Persist
+    /// the key's bytes (`SigningKey::to_bytes`) alongside agent state and pass
+    /// the restored key here so repeat deployments verify under the same
+    /// `signing_pubkey`.
+    pub fn new_with_signing_key(
+        agent: Agent,
+        messaging: Arc<dyn Messaging>,
+        registry: SkillRegistry,
+        name: impl Into<String>,
+        advertised: &[(&str, u128)],
+        signing_key: ed25519_dalek::SigningKey,
     ) -> Self {
         let catalogue = registry.catalogue();
         let known: Vec<Value> = catalogue.as_array().cloned().unwrap_or_default();
@@ -137,29 +230,47 @@ impl A2aProvider {
             })
             .collect();
 
-        let card = AgentCard {
+        let mut card = AgentCard {
             protocol_version: "0.2.5".to_owned(),
             name: name.into(),
             description: "Logos-native A2A agent".to_owned(),
             version: "1.0.0".to_owned(),
             address: inbox_topic(&agent.account_id()),
             lez_account: agent.account_id().to_string(),
-            capabilities: Capabilities { streaming: true },
+            // A2A's `streaming` capability means SSE streaming of a task's
+            // response. This transport delivers task updates over Logos
+            // Messaging topics (polled via `agent.subscribe`), not SSE, so the
+            // card advertises `streaming: false` rather than claiming a
+            // streaming transport it does not provide.
+            capabilities: Capabilities { streaming: false },
             skills,
+            signing_pubkey: String::new(),
+            signature: None,
         };
+        card.sign_with(&signing_key)
+            .expect("signing an agent card cannot fail");
 
         Self {
             agent,
             messaging,
             registry,
             card,
+            signing_key,
         }
     }
 
-    /// This agent's Agent Card (the `agent.card()` skill).
+    /// This agent's Agent Card (the `agent.card()` skill). The card is signed;
+    /// see [`AgentCard::verify`].
     #[must_use]
     pub const fn card(&self) -> &AgentCard {
         &self.card
+    }
+
+    /// The card's Ed25519 signing key. Persist its bytes so a redeployed agent
+    /// re-signs under the same [`AgentCard::signing_pubkey`].
+    #[must_use]
+    pub const fn signing_key(&self) -> &ed25519_dalek::SigningKey {
+        &self.signing_key
     }
 
     /// The provider's own agent (payee).
@@ -332,7 +443,10 @@ impl A2aClient {
     }
 
     /// Build a client whose task ledger is persisted at `state_path`, restoring
-    /// any previously-saved tasks so they survive a restart.
+    /// any previously-saved tasks so they survive a restart. The client's
+    /// per-period spending accumulator is persisted alongside (at
+    /// `<state_path>.period.json`), so task payments count against the period
+    /// limit across restarts too.
     pub fn with_state(
         agent: Agent,
         messaging: Arc<dyn Messaging>,
@@ -346,7 +460,12 @@ impl A2aClient {
             client.next_task = state.next_task;
             client.tasks = state.tasks;
         }
-        client.state_path = Some(state_path);
+        client.state_path = Some(state_path.clone());
+        let period_state = state_path.with_extension("period.json");
+        client
+            .agent
+            .enable_period_persistence(period_state)
+            .context("loading a2a client period-spend state")?;
         Ok(client)
     }
 
@@ -382,6 +501,9 @@ impl A2aClient {
     }
 
     /// Discover Agent Cards published on `discovery_topic` (`agent.discover`).
+    /// Cards whose signature is present and valid can be checked with
+    /// [`AgentCard::verify`]; unsigned cards are returned as-is for backward
+    /// compatibility with earlier deployments.
     pub async fn discover(&self, discovery_topic: &str) -> Result<Vec<AgentCard>> {
         let raw = self.messaging.poll(discovery_topic).await?;
         raw.iter()
@@ -584,5 +706,207 @@ mod tests {
         assert_eq!(restored.next_task, 5, "next-id counter should survive too");
 
         let _ = std::fs::remove_file(&path);
+    }
+
+    /// A provider's Agent Card is signed and verifies against its embedded key.
+    #[tokio::test]
+    async fn agent_card_is_signed_and_verifies() {
+        let messaging = Arc::new(InMemoryMessaging::new());
+        let mut registry = SkillRegistry::new();
+        registry.register(Box::new(crate::skills::EchoSkill));
+        let provider = A2aProvider::new(
+            test_agent(),
+            Arc::clone(&messaging) as Arc<_>,
+            registry,
+            "signer-agent",
+            &[("demo.echo", 5)],
+        );
+        let card = provider.card();
+        assert!(!card.signing_pubkey.is_empty(), "card must carry a pubkey");
+        assert!(card.signature.is_some(), "card must be signed");
+        assert!(card.verify(), "card must verify against its own key");
+    }
+
+    /// A tampered card (a changed price) fails verification — the signature
+    /// commits to the full card body, not just the identity fields.
+    #[tokio::test]
+    async fn tampered_agent_card_fails_verification() {
+        let messaging = Arc::new(InMemoryMessaging::new());
+        let mut registry = SkillRegistry::new();
+        registry.register(Box::new(crate::skills::EchoSkill));
+        let provider = A2aProvider::new(
+            test_agent(),
+            Arc::clone(&messaging) as Arc<_>,
+            registry,
+            "signer-agent",
+            &[("demo.echo", 5)],
+        );
+        let mut card = provider.card().clone();
+        card.skills[0].price_lez = "999".to_owned();
+        assert!(!card.verify(), "a tampered price must fail verification");
+    }
+
+    /// A card discovered over the wire round-trips through serialization and
+    /// still verifies — the signature survives the JSON transport.
+    #[tokio::test]
+    async fn signed_card_round_trips_through_discovery() {
+        const DISCOVERY: &str = "/logos-agent/1/a2a/discovery-test/proto";
+        let messaging = Arc::new(InMemoryMessaging::new());
+        let mut registry = SkillRegistry::new();
+        registry.register(Box::new(crate::skills::EchoSkill));
+        let provider = A2aProvider::new(
+            test_agent(),
+            Arc::clone(&messaging) as Arc<_>,
+            registry,
+            "discovered-agent",
+            &[("demo.echo", 10)],
+        );
+        provider.publish_card(DISCOVERY).await.unwrap();
+
+        let client = A2aClient::new(test_agent(), Arc::clone(&messaging) as Arc<_>);
+        let cards = client.discover(DISCOVERY).await.unwrap();
+        assert_eq!(cards.len(), 1, "should discover the published card");
+        assert!(cards[0].verify(), "discovered card must verify");
+    }
+
+    /// A stable signing key keeps the same `signing_pubkey` across providers,
+    /// so a redeployed agent's card still verifies for clients that pinned it.
+    #[test]
+    fn stable_signing_key_keeps_pubkey_across_redeploys() {
+        let key = ed25519_dalek::SigningKey::generate(&mut rand::rngs::OsRng);
+        let pubkey = hex::encode(key.verifying_key().as_bytes());
+
+        let card_of = |name: &str| {
+            let messaging = Arc::new(InMemoryMessaging::new());
+            let registry = SkillRegistry::new();
+            A2aProvider::new_with_signing_key(
+                test_agent(),
+                messaging,
+                registry,
+                name,
+                &[],
+                key.clone(),
+            )
+            .card()
+            .clone()
+        };
+
+        let first = card_of("v1");
+        let second = card_of("v2");
+        assert_eq!(first.signing_pubkey, pubkey);
+        assert_eq!(second.signing_pubkey, pubkey, "pubkey must be stable");
+        assert!(first.verify() && second.verify());
+    }
+
+    /// A skill that always fails is isolated: the provider surfaces the task as
+    /// `failed` with the error and keeps serving — a concurrently queued working
+    /// task in the same round still completes. This is the reliability
+    /// requirement that a failing skill must not crash the module or affect
+    /// other concurrently running skills.
+    #[tokio::test]
+    async fn failing_skill_is_isolated_and_does_not_affect_other_tasks() {
+        use crate::skills::{EchoSkill, Skill, SkillContext, SkillRegistry as Registry};
+
+        /// A third-party skill that always fails — registered exactly as a real
+        /// third-party skill would be.
+        struct ExplodingSkill;
+        #[async_trait::async_trait(?Send)]
+        impl Skill for ExplodingSkill {
+            fn name(&self) -> &'static str {
+                "demo.explode"
+            }
+            fn description(&self) -> &'static str {
+                "Always fails; used to prove failure isolation."
+            }
+            async fn invoke(
+                &self,
+                _ctx: &mut SkillContext<'_>,
+                _args: serde_json::Value,
+            ) -> anyhow::Result<serde_json::Value> {
+                anyhow::bail!("demo.explode failed on purpose")
+            }
+        }
+
+        let messaging = Arc::new(InMemoryMessaging::new());
+        let mut registry = Registry::new();
+        registry.register(Box::new(EchoSkill));
+        registry.register(Box::new(ExplodingSkill));
+        let provider_agent = test_agent();
+        let provider_account = provider_agent.account_id();
+        let provider = A2aProvider::new(
+            provider_agent,
+            Arc::clone(&messaging) as Arc<_>,
+            registry,
+            "isolated-provider",
+            &[("demo.echo", 1), ("demo.explode", 1)],
+        );
+        let card = provider.card().clone();
+
+        // A client with a distinct account queues a failing task and a working
+        // task against the same provider.
+        let client_account: AccountId = "8QCqovq4QLCZBkMToNs1sXmTAX6NCJzicJB3umRuQaeA"
+            .parse()
+            .expect("valid client account id");
+        let mut client = A2aClient::new(
+            Agent::from_parts(
+                client_account,
+                SpendingPolicy {
+                    per_tx_limit: 10,
+                    per_period_limit: 0,
+                    period_seconds: 86_400,
+                },
+            ),
+            Arc::clone(&messaging) as Arc<_>,
+        );
+        let failing = client
+            .run_task_with_payment(&card, "demo.explode", json!({}), "unit-test-payment")
+            .await
+            .expect("failing task request should submit");
+        let working = client
+            .run_task_with_payment(&card, "demo.echo", json!({ "text": "still-alive" }), "unit-test-payment")
+            .await
+            .expect("working task request should submit");
+
+        // One serve round processes both: the failing task must be surfaced as
+        // `failed` (not crash the provider), and the working task must complete
+        // normally despite its neighbour failing.
+        let served = provider.serve_pending(None).await.expect("serve round");
+        assert_eq!(served, 2, "both tasks should be served in the round");
+        let failed = client
+            .poll_task(&card, &failing)
+            .await
+            .expect("poll failing task");
+        assert_eq!(failed.state, TaskState::Failed);
+        assert!(
+            failed
+                .result
+                .as_ref()
+                .and_then(|value| value["error"].as_str())
+                .unwrap_or_default()
+                .contains("demo.explode failed on purpose"),
+            "the failure error should be surfaced, got {:?}",
+            failed.result
+        );
+        let done = client
+            .poll_task(&card, &working)
+            .await
+            .expect("poll working task");
+        assert_eq!(
+            done.state,
+            TaskState::Completed,
+            "the neighbouring task must not be affected by the failing skill"
+        );
+        assert_eq!(
+            done.result.as_ref().and_then(|value| value["echo"].as_str()),
+            Some("still-alive")
+        );
+
+        // The provider survived the failing skill: it returned 2 (both tasks
+        // served) rather than panicking, and the working task completed despite
+        // its neighbour failing. (A second serve round is not asserted here:
+        // the in-memory messaging backend does not consume messages on poll, so
+        // it would re-serve; the real Waku backend's store has retention, not
+        // consumption. The isolation is proven by the single round above.)
+        let _ = provider_account; // documented: provider identity unused beyond setup
     }
 }
