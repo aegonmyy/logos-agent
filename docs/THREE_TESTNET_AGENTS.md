@@ -99,9 +99,30 @@ holder balance read back as 100 (see `docs/TESTNET_EVIDENCE.md`). This updates
 the earlier "public write path is down" limitation: the path is currently
 healthy and transactions are being included.
 
+## Per-agent on-chain evidence: 2026-08-22
+
+Each of the three category agents now has its own **included, verified on-chain
+transaction** on the public testnet, driven through the agent's own skill
+dispatch: `tests/three_testnet_settlements.rs` deploys a program to the public
+testnet and each agent settles through it — storage at block **18599**,
+messaging at **18600**, blockchain at **18601**, every settlement's account
+ownership change re-read from chain state. Full evidence and RPC
+re-verification: [`THREE_TESTNET_SETTLEMENTS.md`](THREE_TESTNET_SETTLEMENTS.md).
+
+An additional per-agent artifact class — a token mint whose supply is the
+agent's own shielded account (so the agent holds the balance) — was attempted
+on 2026-08-22 and did **not** include: the transaction remained unmined for
+three hours while sibling public transactions included in the same window.
+A private-supply mint is a shielded transaction, the same class the sequencer
+drops (verified for token `Send`s; single observation for private mints — see
+[`TESTNET_EVIDENCE.md`](TESTNET_EVIDENCE.md)). The test therefore bounds its
+mint wait and reports `submitted_pending` rather than hanging when the
+sequencer drops the transaction.
+
 ## Current Repository State
 
 The checked-in `tests/three_category_agents.rs` test is local-sequencer evidence
-only. It must not be presented as public-testnet evidence. This test and document
-provide the public-testnet procedure; a passing run with a funded wallet and live
-services is required before marking the LP-0008 criterion complete.
+only. It must not be presented as public-testnet evidence. Public-testnet
+evidence is this document (identities) plus
+[`THREE_TESTNET_SETTLEMENTS.md`](THREE_TESTNET_SETTLEMENTS.md) (per-agent
+included transactions), both reproducible via the ignored public-testnet suites.

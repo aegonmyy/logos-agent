@@ -133,14 +133,24 @@ The discriminator was pinned down by querying the public RPC directly:
   the RPC answers `null` for "not on chain" rather than for "query failed".
 
 So token-program `Send` instructions submitted to this testnet are accepted by
-the API layer and silently dropped before block assembly, while the same
-program's `New` (mint) instructions from the same wallet include within a block
-or two. This is a sequencer-side filter on the instruction, not a wallet,
-proof, or fee problem on our side — which is also consistent with how a
-third-party submission (edenbd1/lambda-prize #129) produced its public-testnet
-settlements: every settlement there is a call to the submitter's **own deployed
-program**, never a token-program `Send`. Program deployment and program calls
-are public transactions the sequencer includes.
+the API layer and silently dropped before block assembly, while public
+transactions from the same wallet include within a block or two. This is a
+sequencer-side filter, not a wallet, proof, or fee problem on our side. The
+discriminator, across everything observed on this testnet, is **public vs.
+private (shielded) transaction kind**, not the instruction:
+
+| Transaction | Kind | Outcome |
+|---|---|---|
+| Token mint, public supply (2026-08-21, ×4) | public | included (blocks 17716, 17791–17793) |
+| Token `Send` | private | **dropped** (hash returns `null`; verified, null control included) |
+| Token mint, private supply = agent's shielded account (2026-08-22, ×1) | private | **never included** — sat unmined for 3h while sibling public txs (below) included the same morning; single observation, and the hash is not recoverable because the wallet was still inside its inclusion wait when the run was stopped |
+| Program deploy + program calls (2026-08-22, ×4) | public | included (before block 18599; blocks 18599–18601) |
+
+This is also consistent with how a third-party submission (edenbd1/lambda-prize
+#129) produced its public-testnet settlements: every settlement there is a call
+to the submitter's **own deployed program**, never a token-program `Send`.
+Program deployment and program calls are public transactions the sequencer
+includes.
 
 **Consequence for our evidence:** the send/settlement leg on the public testnet
 is exercised through our own deployed program rather than the token program's
