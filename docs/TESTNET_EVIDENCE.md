@@ -119,3 +119,34 @@ standalone sequencer (real proofs, balances 90/10 — see
 path. Why transfers specifically do not include while mints do is not diagnosed;
 no guess is offered. Re-run when the public write path is healthier to upgrade
 pending anchors.
+
+## Transfer non-inclusion: verified diagnosis (2026-08-22)
+
+The discriminator was pinned down by querying the public RPC directly:
+
+- **Sibling mints from the same run are queryable** — `getTransaction` for a
+  mint hash submitted seconds earlier returns full transaction data.
+- **The submitted transfer hash returns `null`** — not `rejected`, not an error:
+  the sequencer's chain has no record of it, so the client never has a hash it
+  can meaningfully wait on.
+- **Null control:** an impossible (random) hash also returns `null`, confirming
+  the RPC answers `null` for "not on chain" rather than for "query failed".
+
+So token-program `Send` instructions submitted to this testnet are accepted by
+the API layer and silently dropped before block assembly, while the same
+program's `New` (mint) instructions from the same wallet include within a block
+or two. This is a sequencer-side filter on the instruction, not a wallet,
+proof, or fee problem on our side — which is also consistent with how a
+third-party submission (edenbd1/lambda-prize #129) produced its public-testnet
+settlements: every settlement there is a call to the submitter's **own deployed
+program**, never a token-program `Send`. Program deployment and program calls
+are public transactions the sequencer includes.
+
+**Consequence for our evidence:** the send/settlement leg on the public testnet
+is exercised through our own deployed program rather than the token program's
+`Send` — see [`THREE_TESTNET_SETTLEMENTS.md`](THREE_TESTNET_SETTLEMENTS.md)
+(`tests/three_testnet_settlements.rs`): one program deployment, then
+per-agent `program.call` settlements whose state change is read back on chain.
+The token `Send` path remains fully evidenced against the local standalone
+sequencer with real proofs (`tests/a2a_two_agents.rs`,
+`tests/three_use_cases_local.rs`).
