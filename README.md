@@ -286,6 +286,17 @@ anchors) and the `*_live` tests (running Codex/Waku nodes, including
 `--cluster-id=2` plus the local sequencer). See
 `docs/THREE_USE_CASES.md`.
 
+Public-testnet suites (also ignored, pointed at
+`https://testnet.lez.logos.co` by default): `three_testnet_agents` gives each
+category agent an included mint to its own account,
+`three_testnet_settlements` deploys a program and settles once per agent
+through it, and `testnet_tx` mints and transfers `TESTNET-COIN`. The evidence
+they produced — verified transaction hashes, blocks, and the diagnosis of why
+the sequencer drops token transfers — is in
+[`docs/TESTNET_EVIDENCE.md`](docs/TESTNET_EVIDENCE.md),
+[`docs/THREE_TESTNET_AGENTS.md`](docs/THREE_TESTNET_AGENTS.md), and
+[`docs/THREE_TESTNET_SETTLEMENTS.md`](docs/THREE_TESTNET_SETTLEMENTS.md).
+
 ## License
 
 Dual-licensed under MIT or Apache-2.0.
