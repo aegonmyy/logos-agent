@@ -102,6 +102,14 @@ jobs:
           done
           echo "v0.4.2" > "$HOME/.logos-blockchain-circuits/VERSION"
 
+      # The three self-hosted runners (agent/vault/osm) share one home directory.
+      # Their toolchain installs churn the rustup shims in ~/.cargo/bin concurrently,
+      # which intermittently breaks `cargo` resolution mid-job (observed twice on
+      # this box, 2026-08-28). Pin cargo to the real 1.94.0 toolchain binary, which
+      # concurrent rustup operations do not touch. Matches rust-toolchain.toml.
+      - name: Pin cargo to the real 1.94.0 toolchain
+        run: echo "$HOME/.rustup/toolchains/1.94.0-x86_64-unknown-linux-gnu/bin" >> "$GITHUB_PATH"
+
       - name: "E2E: agent on a local LEZ sequencer (shielded account, spend, hold)"
         run: cargo test --test agent_spending -- --nocapture --test-threads=1
 
