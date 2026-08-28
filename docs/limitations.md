@@ -21,13 +21,16 @@ through the runtime. The wallet-backed on-chain skills are not yet driven
 through the module session; they run from the headless `agent` binary and the
 CLI. See `docs/LOGOS_CORE_LOADED.md`.
 
-## 3. Owner approve/deny is verified at the ABI, not yet at runtime
+## 3. The owner GUI click-through is not yet recorded
 
 The owner-channel FFI is implemented, unit-tested, and verified across the C
 ABI (a standalone harness dlopens `liblogos_agent.so` and exercises every
 owner-channel symbol), and the Qt module builds with the Logos module builder.
-A runtime approve/deny pass against a live agent plus a Waku node is still
-needed for full evidence.
+The hold -> approve -> execute flow itself is proven by automated tests
+(`owner_ffi_e2e.rs` and `owner_ffi_waku.rs`, the latter with real Waku as the
+transport against a live nwaku node). What is still needed for full evidence is
+a recorded click-through of the QML approve/deny UI against a live agent and a
+Waku node.
 
 ## 4. The public testnet drops token-program transfers
 
