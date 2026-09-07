@@ -183,13 +183,12 @@ struct PendingSpend {
     amount: u128,
 }
 
-/// The durable part of a runtime: pending approvals and cursors. Persisted so a
-/// restarted agent does not lose spends awaiting owner approval.
+/// The durable part of a runtime: pending approvals and the next request id.
+/// Persisted so a restarted agent does not lose spends awaiting owner approval.
 #[derive(Debug, Default, Serialize, Deserialize)]
 struct PersistedState {
     pending: HashMap<String, PendingSpend>,
     next_id: u64,
-    consumed: usize,
 }
 
 /// The agent-side runtime: proposes spends, holds pending approvals, and applies
@@ -199,8 +198,6 @@ pub struct AgentRuntime {
     channel: OwnerChannel,
     pending: HashMap<String, PendingSpend>,
     next_id: u64,
-    // How many owner→agent messages have already been consumed.
-    consumed: usize,
     // Where pending state is persisted, if durability is enabled.
     state_path: Option<PathBuf>,
 }
@@ -213,7 +210,6 @@ impl AgentRuntime {
             channel,
             pending: HashMap::new(),
             next_id: 0,
-            consumed: 0,
             state_path: None,
         }
     }
@@ -228,7 +224,6 @@ impl AgentRuntime {
                 serde_json::from_slice(&bytes).context("parsing agent state")?;
             runtime.pending = state.pending;
             runtime.next_id = state.next_id;
-            runtime.consumed = state.consumed;
         }
         runtime.state_path = Some(state_path);
         Ok(runtime)
@@ -240,7 +235,6 @@ impl AgentRuntime {
             let state = PersistedState {
                 pending: self.pending.clone(),
                 next_id: self.next_id,
-                consumed: self.consumed,
             };
             let bytes = serde_json::to_vec(&state).context("encoding agent state")?;
             std::fs::write(path, bytes).context("writing agent state")?;
@@ -343,6 +337,17 @@ impl AgentRuntime {
 
     /// Apply any new owner→agent messages: execute approved spends, drop denied
     /// ones, and apply configuration changes. Returns what was resolved.
+    ///
+    /// Dedupe is by content, not by message position: a decision for an id no
+    /// longer in `pending` is a no-op (the spend was already executed/denied),
+    /// and a configure that sets the limit to the value it already has does
+    /// nothing. This is correct for both messaging backends: `InMemoryMessaging`
+    /// returns the full cumulative message list each poll, while `WakuMessaging`
+    /// (nwaku) evicts a message after it is first read, so each poll returns
+    /// only messages that arrived since the last poll. A positional
+    /// "skip the first N" cursor would skip fresh messages on an evicting
+    /// backend (the second decision ever would be dropped); content dedupe
+    /// does not.
     pub async fn process_owner_messages(
         &mut self,
         wallet: &mut WalletCore,
@@ -350,8 +355,7 @@ impl AgentRuntime {
         let messages = self.channel.owner_messages().await?;
         let mut resolved = Vec::new();
 
-        for message in messages.into_iter().skip(self.consumed) {
-            self.consumed += 1;
+        for message in messages {
             match message.get("type").and_then(Value::as_str) {
                 Some("decision") => {
                     let id = message
@@ -363,6 +367,9 @@ impl AgentRuntime {
                         .get("approve")
                         .and_then(Value::as_bool)
                         .unwrap_or(false);
+                    // pending.remove is the dedupe: a decision re-delivered
+                    // (InMemory backend) or seen twice finds no pending spend
+                    // and is a no-op.
                     if let Some(spend) = self.pending.remove(&id) {
                         if approve {
                             self.agent
@@ -383,10 +390,15 @@ impl AgentRuntime {
                         .and_then(Value::as_str)
                         .and_then(|value| value.parse::<u128>().ok())
                     {
-                        self.agent.set_policy_limit(limit);
-                        resolved.push(Resolved::Reconfigured {
-                            per_tx_limit: limit,
-                        });
+                        // Dedupe: ignore a configure that sets the limit to the
+                        // value it already holds (a re-delivered message on a
+                        // cumulative backend).
+                        if self.agent.policy_limit() != limit {
+                            self.agent.set_policy_limit(limit);
+                            resolved.push(Resolved::Reconfigured {
+                                per_tx_limit: limit,
+                            });
+                        }
                     }
                 }
                 Some("configure_period") => {
@@ -396,11 +408,14 @@ impl AgentRuntime {
                         .and_then(|value| value.parse::<u128>().ok());
                     let seconds = message.get("period_seconds").and_then(Value::as_u64);
                     if let (Some(limit), Some(seconds)) = (limit, seconds) {
-                        self.agent.set_period_policy(limit, seconds);
-                        resolved.push(Resolved::PeriodReconfigured {
-                            per_period_limit: limit,
-                            period_seconds: seconds,
-                        });
+                        let (cur_limit, cur_seconds) = self.agent.period_policy();
+                        if (cur_limit, cur_seconds) != (limit, seconds) {
+                            self.agent.set_period_policy(limit, seconds);
+                            resolved.push(Resolved::PeriodReconfigured {
+                                per_period_limit: limit,
+                                period_seconds: seconds,
+                            });
+                        }
                     }
                 }
                 _ => {}
