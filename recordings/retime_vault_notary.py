@@ -26,6 +26,8 @@ BEATS = [
     ("included in block 14", 130),
     ("invalid privacy", 180),
     ("included in block 17", 215),
+    ("paid_multi_agent_task", 250),
+    ("test result", 300),
 ]
 
 def dwell(out: str) -> float:
