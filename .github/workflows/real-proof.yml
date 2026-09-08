@@ -1,0 +1,74 @@
+name: real-proof-e2e
+
+# The RISC0_DEV_MODE=0 lane: real Groth16 proofs, no dev-mode shortcuts.
+#
+# Runs ON DEMAND (workflow_dispatch), not on every push. Real proving is slow
+# (~10-15 min per shielded tx; the local agent-spending flow alone is ~2.5-3 h
+# at DEV_MODE=0), so triggering it on every push would make every push hold a
+# runner hostage and freeze the branch (the fast CI lane cancels in-flight
+# runs on new pushes). Instead:
+#
+#   - pushes to main run the fast lane only (clean-room build + e2e at
+#     DEV_MODE=1, ~20 min) in ci.yml;
+#   - this workflow is dispatched when a commit needs real-proof evidence
+#     (e.g. before a submission review), on the exact commit under review;
+#     the resulting green run is the pinned evidence the submission cites.
+#
+# Owns its concurrency group so a push can never cancel a proving run, and a
+# second dispatch queues behind the first instead of killing it.
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: real-proof-e2e
+  cancel-in-progress: false
+
+jobs:
+  e2e-real-proof:
+    runs-on: [self-hosted, linux]
+    env:
+      RISC0_DEV_MODE: "0"
+      CARGO_TERM_COLOR: always
+      CARGO_HOME: /tmp/ci-cargo-home
+      CARGO_TARGET_DIR: /tmp/ci-e2e-target
+      # The runner process is root, but the rust 1.94.0 toolchain and the risc0
+      # (r0vm) install both live under /home/ubuntu. GitHub Actions overrides
+      # HOME to a temp dir per step, which makes risc0-build panic ("Could not
+      # determine home directory") and breaks cargo resolution. Point HOME at
+      # the real install so risc0-build finds r0vm and the toolchain resolves.
+      HOME: /home/ubuntu
+    steps:
+      - name: Reclaim workspace (older runs may have left root-owned files)
+        run: sudo chown -R "$(id -u):$(id -g)" "$RUNNER_WORKSPACE" 2>/dev/null || true
+
+      - uses: actions/checkout@v4
+
+      - name: Stub blockchain circuits (no proving in CI)
+        run: |
+          for d in pol poc poq zksign; do
+            mkdir -p "$HOME/.logos-blockchain-circuits/$d"
+            echo '{"type":"stub"}' > "$HOME/.logos-blockchain-circuits/$d/verification_key.json"
+          done
+          echo "v0.4.2" > "$HOME/.logos-blockchain-circuits/VERSION"
+
+      - name: Pin cargo to the real 1.94.0 toolchain
+        run: |
+          for d in "$HOME/.rustup" /home/ubuntu/.rustup /root/.rustup; do
+            bin="$d/toolchains/1.94.0-x86_64-unknown-linux-gnu/bin"
+            if [ -x "$bin/cargo" ]; then echo "$bin" >> "$GITHUB_PATH"; break; fi
+          done
+
+      - name: "E2E (real proof): agent on a local LEZ sequencer (shielded account, spend, hold)"
+        run: cargo test --test agent_spending -- --nocapture --test-threads=1
+
+      - name: "E2E (real proof): shielded send on the public LEZ testnet (proof-bearing on-chain tx)"
+        run: cargo test --test testnet_shielded_probe -- --ignored --nocapture --test-threads=1
+        env:
+          AGENT_TESTNET_URL: https://testnet.lez.logos.co
+        # The public testnet flaps (its sequencer goes up and down behind an
+        # nginx that returns 502). The durable evidence is the committed RPC
+        # snapshot (271,076 bytes, block 42709, docs/SHIELDED_TESTNET_PROOF.md);
+        # this step re-lands equivalent evidence when the testnet is up, but
+        # must not red CI when it is down. The required real-proof lane is the
+        # local agent_spending step above (deterministic, DEV_MODE=0).
+        continue-on-error: true
