@@ -14,26 +14,32 @@ to drain).
 
 ## What is running (evening 2026-09-08, all automatic, logs under /tmp)
 
-Serialized proving queue (one cargo at a time; the box is 8 cores / 15 GB and
-saturates):
+#47 identity re-land PASSED 19:10 (2h20m). Evidence in the memory ledger:
+messaging mint tx 328d26a7... block 317, blockchain mint tx 5fc57a20...
+block 338; storage mint submitted_pending (verify on-chain later).
 
-1. #47 identity re-land: `three_testnet_agents` (pid 466364, log
-   /tmp/reland-f9-f10.log) — three category-agent identities on the public
-   testnet, real proofs. Started 16:50. Hit two mint failures ("Circuit
-   proving error", then a dead-connection timeout) and is on a retry with
-   fresh accounts; an r0vm op has been proving ~27 min as of 18:24. Slow but
-   alive. If it exhausts its retries and fails, the master chain still moves
-   on to the next stage (it waits on pid exit, not success).
-2. #48 use-case anchors (`three_use_cases` memory lane) — queued in
-   /home/ubuntu/master-chain.sh (pid 466444, log /tmp/master-chain.log).
-3. F9 lane A (real Codex + real Waku + public anchors) — queued.
-4. F9 lane B (public payment, RUN_PAID_A2A=1) — queued.
-5. F10 full-strength identity run with services — queued.
-6. #50 recording: /home/ubuntu/record-vault-notary.sh (pid 475400) waits for
-   MASTER_CHAIN_DONE, then records `demo.sh three_use_cases_local` at
-   DEV_MODE=0 via asciinema in a 120x32 tmux session →
-   recordings/vault-notary-real-proof.cast. Style: zoomed-out terminal, no
-   overlays (matches video 1).
+Master-chain v1 then hit a silent no-op bug: its three_use_cases stages used
+a double `--` (`-- three_lp0008_use_cases -- --ignored`), which turns
+--ignored into a filter string, so stage_48/lane_A/lane_B all "passed" in
+0.00s doing nothing. Caught because 0.00s plus "1 ignored" is not a pass.
+Rebuilt as /home/ubuntu/master-chain-v2.sh (pid 477945, appends to
+/tmp/master-chain.log) with corrected argv and the RECORDING FIRST. Stages:
+
+1. R: warm build, then asciinema capture of `demo.sh three_use_cases_local`
+   at DEV_MODE=0 in a 120x32 tmux session ->
+   recordings/vault-notary-real-proof.cast (video-1 style: zoomed out, no
+   overlays). RECORDING_DONE when the tmux session ends.
+2. #48 memory-anchored use cases (SERVICE_BACKEND=memory).
+3. Lane A: real Codex + real Waku + public anchors (RUN_PUBLIC_USE_CASES=1).
+4. Lane B: paid task with public payment (RUN_PAID_A2A=1).
+5. F10 full-strength identities with services on.
+6. MASTER_CHAIN_DONE -> night-autopush pushes main, CI runs overnight.
+
+Watchdog (night-watchdog.sh, armed on pid 477945): kills a stage's cargo
+tree only if BOTH queue logs and ALL r0vm CPU are frozen for 45 straight
+minutes; stands down at MASTER_CHAIN_DONE. Autopush (night-autopush.sh)
+waits for MASTER_CHAIN_DONE, never prints the token, runs once (marker
+file).
 
 Casualty log: a stray parallel `three_use_cases` launch (pre-serialize
 experiment) was OOM-SIGKILLed when load hit 39; it had already landed a
