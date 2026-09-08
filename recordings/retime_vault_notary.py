@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 """Re-time the vault+notary cast (58 min of real proving) down to a narratable
-~4:20, the same treatment logos-agent-real-proof.cast got, with a second pass
-that stretches the quiet stretches so each on-screen beat lands when the
-narration reaches it (see recordings/vault-notary-narration.md).
+~4:25, the same treatment logos-agent-real-proof.cast got, with a second pass
+that freezes the screen just before each narration beat so the beat lands
+exactly when the narration reaches it (see recordings/vault-notary-narration.md).
 
 Pass 1 assigns every event a dwell from what it shows (banners and results
-hold, progress bars and tx dumps collapse). Pass 2 pins the six narration
-beats to target times and rescales the dwell between consecutive beats.
+hold, progress bars and tx dumps collapse). Pass 2 pins four beats to target
+times by adding a hold to the event just before each beat: the screen freezes
+on what is showing (e.g. the anchor lines) while the narration carries, then
+the beat prints on cue. The header idle cap is set above the largest hold so
+renderers honor the pacing instead of clamping it.
 """
 import json, re
 
@@ -23,8 +26,6 @@ BEATS = [
     ("included in block 14", 130),
     ("invalid privacy", 180),
     ("included in block 17", 215),
-    ("test result", 240),
-    ("demo complete", 255),
 ]
 
 def dwell(out: str) -> float:
@@ -61,11 +62,10 @@ with open(SRC) as f:
         except Exception:
             continue
 
-# pass 1: raw dwell
 raw = [dwell(o) for o in events]
 
 # locate beat events, in order
-pins = []  # (event index, target time)
+pins = []
 search_from = 0
 for sub, target in BEATS:
     for i in range(search_from, len(events)):
@@ -75,34 +75,38 @@ for sub, target in BEATS:
             break
 assert len(pins) == len(BEATS), f"missing beats: found {len(pins)} of {len(BEATS)}"
 
-# pass 2: rescale dwell between consecutive pins so each pin lands on target
-scaled = list(raw)
-prev_i, prev_t = 0, 0.0
-for i, target in pins + [(len(events), None)]:
-    window = sum(raw[prev_i:i])
-    avail = (target - prev_t) if target is not None else window
-    if window > 0 and avail > 0:
-        f = avail / window
-        for j in range(prev_i, i):
-            scaled[j] = raw[j] * f if raw[j] > 0.3 else raw[j]  # keep churn fast
-    if target is not None:
-        prev_i, prev_t = i, target
+# pass 2: hold on the event before each beat until the beat lands on target.
+# t is the start time of event i; a hold lengthens event i's dwell (the time
+# AFTER it prints) so the next event, the beat, starts exactly on target.
+held = list(raw)
+starts = [0.0] * len(events)
+t = 0.0
+pin_iter = iter(pins)
+next_pin = next(pin_iter, None)
+for i in range(len(events)):
+    d = held[i]
+    if next_pin and i + 1 == next_pin[0]:
+        deficit = next_pin[1] - (t + d)
+        if deficit > 0:
+            held[i] += deficit
+            d = held[i]
+        next_pin = next(pin_iter, None)
+    starts[i] = t
+    t += d
 
 with open(DST, "w") as f:
-    header["idle_time_limit"] = 10.0
+    header["idle_time_limit"] = 300.0
     f.write(json.dumps(header) + "\n")
-    t = 0.0
-    chapters = []
-    for out, d in zip(events, scaled):
-        low = out.lower()
-        if any(k in low for k in ("use_case=", "included in block", "demo complete",
-                                  "test result", "risc0_dev_mode=0", "invalid privacy")):
-            chapters.append((t, out.replace("\r", " ").replace("\n", " ").strip()[:100]))
-        f.write(json.dumps([round(t, 3), "o", out]) + "\n")
-        t += d
+    tt = 0.0
+    for out, d in zip(events, held):
+        f.write(json.dumps([round(tt, 3), "o", out]) + "\n")
+        tt += d
 
-print(f"wrote {DST}: {len(events)} events, {t:.1f}s = {t/60:.1f} min")
-print("\nBEATS (pinned):", [(i, tt) for (i, tt) in pins])
-print("\nCHAPTERS (elapsed sec -> line):")
-for tt, line in chapters:
-    print(f"  {tt:7.1f}s  {line}")
+print(f"wrote {DST}: {len(events)} events, {tt:.1f}s = {tt/60:.1f} min")
+print("\nBEATS land at:")
+for i, target in pins:
+    print(f"  {starts[i]:7.1f}s  {events[i].replace(chr(13), ' ').replace(chr(10), ' ').strip()[:70]}")
+for i, out in enumerate(events):
+    low = out.lower()
+    if any(k in low for k in ("paid_multi_agent_task", "test result", "demo complete")):
+        print(f"  tail {starts[i]:6.1f}s  {out.replace(chr(13), ' ').replace(chr(10), ' ').strip()[:70]}")

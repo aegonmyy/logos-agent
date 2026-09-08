@@ -1,7 +1,7 @@
 # Video 2 narration: vault + notary, real proofs
 
 Read this in your own voice, in sync with `recordings/vault-notary-narratable.mp4`
-(4 min 26 s). Play the video, start each section when its on-screen moment
+(4 min 25 s). Play the video, start each section when its on-screen moment
 arrives, and if you finish a line early just pause for a beat. If a section
 runs long, no problem: say the word and I stretch that window.
 
@@ -27,13 +27,13 @@ minutes. The stack is a real local Logos Execution Zone with a sequencer, the
 same software the public testnet runs. Two scenarios here. The agent gets a
 personal file vault, then it notarizes a document, privately.
 
-## 2. Personal file vault — 0:49 to 2:01
+## 2. Personal file vault — 0:50 to 2:10
 
-*(on screen: the two anchor lines print at 0:49: "use_case=
+*(on screen: the two anchor lines print at 0:50: "use_case=
 personal_file_vault cid=a22de530..." and "use_case=privacy_preserving_notary
 cid=27ddd97c...", then the screen holds on the anchor while proving would run;
 "Transaction is included in block 14" with a PrivacyPreserving dump arrives at
-2:01, and the "there it is" line lands right on it)*
+2:10, and the "there it is" line lands right on it)*
 
 The vault scenario. The two lines near the top are the anchors. The first is
 the agent's personal file vault: a content identifier for its encrypted
@@ -48,12 +48,12 @@ repo docs show the exact RPC call to check that yourself. And there it is:
 transaction included, block fourteen, type privacy preserving. That is the
 vault: an agent that owns its files and its payments around them.
 
-## 3. Privacy-preserving notary — 2:01 to 3:28
+## 3. Privacy-preserving notary — 2:10 to 3:35
 
-*(on screen: the block-14 PrivacyPreserving dump scrolls out, then at ~2:55
-the indexer warnings in red: "InvalidPrivacyPreservingProof", "Parked at
-block 7"; "Transaction is included in block 17" arrives at 3:28, timed to the
-last sentence)*
+*(on screen: the block-14 PrivacyPreserving dump scrolls out and the screen
+settles, then at ~3:04 the indexer warnings in red:
+"InvalidPrivacyPreservingProof", "Parked at block 7"; "Transaction is
+included in block 17" arrives at 3:35, timed to the last sentence)*
 
 Second scenario, the privacy-preserving notary. The agent takes a document,
 hashes it, and commits that hash privately, through the second anchor you saw
@@ -65,12 +65,12 @@ proofs and parking. It is a known issue, disclosed in the repo's limitations
 doc. The sequencer is a separate path and it is the one that matters here:
 transaction included, block seventeen. The notarization is on chain.
 
-## 4. Close — 3:28 to 4:26
+## 4. Close — 3:35 to 4:25
 
 *(on screen: "use_case=paid_multi_agent_task task_id=task-0 provider=..." and
 "three_use_cases_local=complete personal_file_vault privacy_preserving_notary
 paid_multi_agent_task", then "test result: ok. 1 passed ... finished in
-3473.40s" at 4:06, then the "Demo complete" banner at 4:21 to end on)*
+3473.40s" at 4:15, then the "Demo complete" banner at 4:20 to end on)*
 
 And the run closes itself out: a paid multi-agent task, the provider paid in
 tokens, the client balance updated. That is the scenario from video one, and
@@ -85,15 +85,12 @@ how. Thanks for watching.
 
 ## Edit notes (for the mux step, after the audio exists)
 
-- Section 1 over the banner and anchor lines; hold the anchor frame until the
-  audio moves to section 2.
-- Sections 2 and 3 each have a proving stretch: slow the screen (or hold a
-  frame with the anchor line visible) and let the narration carry. When the
-  audio reaches "transaction included", cut to the inclusion line at the raw
-  cast time for that block.
-- The red indexer lines stay visible only while section 3 mentions them, then
-  cut to block 17's inclusion line.
-- Section 4 over the paid-task result line and the final test result; end on
-  the "Demo complete" banner.
-- Raw cast timestamps: block 14 inclusion 25:55, indexer warnings 57:25,
-  block 17 inclusion 57:53, paid task result 57:55, test result 58:07.
+- The narratable mp4 already carries the beat timing: vault anchor 0:50,
+  block 14 at 2:10, indexer red at ~3:04, block 17 at 3:35, test result
+  4:15, "Demo complete" 4:20, end 4:25. Mux the voiceover straight onto it.
+- If a recorded section runs long, extend that window's hold in
+  `retime_vault_notary.py` (the BEATS targets) and re-render; the holds are
+  single numbers, the retimer is deterministic.
+- Raw-cast landmarks, if needed for a caption or follow-along: block 14
+  inclusion 25:55, indexer warnings 57:25, block 17 inclusion 57:53, paid
+  task result 57:55, test result 58:07 of the 58-minute original.
