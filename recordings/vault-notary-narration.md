@@ -1,23 +1,21 @@
 # Video 2 narration: vault + notary, real proofs
 
-For you to read in your own voice. Any mic works, phone included. Read at a
-natural pace and pause wherever you like: the video stretches to fit your
-audio, so timing is free. About four minutes at a relaxed pace.
+Read this in your own voice, in sync with `recordings/vault-notary-narratable.mp4`
+(4 min 26 s). Play the video, start each section when its on-screen moment
+arrives, and if you finish a line early just pause for a beat. If a section
+runs long, no problem: say the word and I stretch that window.
 
-Sections below map to what is on screen. The cast times are where each beat
-lives in the raw capture; ignore them while reading, they are for the edit.
-
-Cast: `recordings/vault-notary-real-proof.cast` (58 min raw, 120x32).
-On-screen run: `three_use_cases_local` at `RISC0_DEV_MODE=0`, 1 passed in
-3473.40 s.
+The raw 58-minute capture (`vault-notary-real-proof.cast`) is compressed to
+this 4:26 cut; the proving dead air is collapsed but nothing is cut. Raw-cast
+times are noted per section for the edit; ignore them while reading.
 
 ---
 
-## 1. Open
+## 1. Open — 0:00 to 0:49
 
 *(on screen: banner "Logos Autonomous Agent, end to end demo", then
 "RISC0_DEV_MODE = 0 (0 = real Groth16 proofs)" and "Running
-three_use_cases_local"; cast 0:00-0:20)*
+three_use_cases_local"; the stack boots behind it)*
 
 Hey, welcome back. This is video two for LP-0008. The first video covered the
 core loop: the wallet, the owner approvals, and agents paying agents. This one
@@ -29,13 +27,13 @@ minutes. The stack is a real local Logos Execution Zone with a sequencer, the
 same software the public testnet runs. Two scenarios here. The agent gets a
 personal file vault, then it notarizes a document, privately.
 
-## 2. Personal file vault
+## 2. Personal file vault — 0:49 to 2:01
 
-*(on screen: sync bar completes, then the two anchor lines: "use_case=
+*(on screen: the two anchor lines print at 0:49: "use_case=
 personal_file_vault cid=a22de530..." and "use_case=privacy_preserving_notary
-cid=27ddd97c..."; cast 0:20. Then the long quiet proving stretch, ending in
-"Transaction is included in block 14" with a PrivacyPreserving dump; cast
-25:55)*
+cid=27ddd97c...", then the screen holds on the anchor while proving would run;
+"Transaction is included in block 14" with a PrivacyPreserving dump arrives at
+2:01, and the "there it is" line lands right on it)*
 
 The vault scenario. The two lines near the top are the anchors. The first is
 the agent's personal file vault: a content identifier for its encrypted
@@ -50,11 +48,12 @@ repo docs show the exact RPC call to check that yourself. And there it is:
 transaction included, block fourteen, type privacy preserving. That is the
 vault: an agent that owns its files and its payments around them.
 
-## 3. Privacy-preserving notary
+## 3. Privacy-preserving notary — 2:01 to 3:28
 
-*(on screen: second quiet proving stretch, then indexer warnings in red
-("InvalidPrivacyPreservingProof", "Parked at block 7"), then "Transaction is
-included in block 17"; cast 57:25-57:55)*
+*(on screen: the block-14 PrivacyPreserving dump scrolls out, then at ~2:55
+the indexer warnings in red: "InvalidPrivacyPreservingProof", "Parked at
+block 7"; "Transaction is included in block 17" arrives at 3:28, timed to the
+last sentence)*
 
 Second scenario, the privacy-preserving notary. The agent takes a document,
 hashes it, and commits that hash privately, through the second anchor you saw
@@ -66,13 +65,12 @@ proofs and parking. It is a known issue, disclosed in the repo's limitations
 doc. The sequencer is a separate path and it is the one that matters here:
 transaction included, block seventeen. The notarization is on chain.
 
-## 4. Close
+## 4. Close — 3:28 to 4:26
 
-*(on screen: "use_case=paid_multi_agent_task task_id=task-0 provider=...",
+*(on screen: "use_case=paid_multi_agent_task task_id=task-0 provider=..." and
 "three_use_cases_local=complete personal_file_vault privacy_preserving_notary
-paid_multi_agent_task", then "Demo complete, all scenarios passed with
-RISC0_DEV_MODE=0" and "test result: ok. 1 passed ... finished in 3473.40s";
-cast 57:55-58:10)*
+paid_multi_agent_task", then "test result: ok. 1 passed ... finished in
+3473.40s" at 4:06, then the "Demo complete" banner at 4:21 to end on)*
 
 And the run closes itself out: a paid multi-agent task, the provider paid in
 tokens, the client balance updated. That is the scenario from video one, and
