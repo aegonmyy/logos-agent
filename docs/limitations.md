@@ -21,28 +21,7 @@ through the runtime. The wallet-backed on-chain skills are not yet driven
 through the module session; they run from the headless `agent` binary and the
 CLI. See `docs/LOGOS_CORE_LOADED.md`.
 
-## 3. The owner GUI click-through is not yet recorded
-
-The owner-channel FFI is implemented, unit-tested, and verified across the C
-ABI (a standalone harness dlopens `liblogos_agent.so` and exercises every
-owner-channel symbol), and the Qt module builds with the Logos module builder.
-The hold -> approve -> execute flow itself is proven by automated tests
-(`owner_ffi_e2e.rs` and `owner_ffi_waku.rs`, the latter with real Waku as the
-transport against a live nwaku node). What is still needed for full evidence is
-a recorded click-through of the QML approve/deny UI against a live agent and a
-Waku node.
-
-## 4. The public testnet drops token-program transfers
-
-On 2026-08-22 the public sequencer included token-program mints but silently
-dropped token-program transfers: a submitted transfer hash returns `null` from
-`getTransaction` while a sibling mint from the same run is queryable (null
-control included). Settlement is therefore evidenced through the program-call
-path, which the sequencer does include, and the token `Send` leg is evidenced
-on a local standalone sequencer with real proofs. See `docs/TESTNET_EVIDENCE.md`
-for the null-control diagnosis.
-
-## 5. The standalone stack's indexer stalls on a privacy-preserving proof
+## 3. The standalone stack's indexer stalls on a privacy-preserving proof
 
 In the recorded real-proof run, the standalone stack's indexer rejected a
 privacy-preserving proof while re-applying an early block and stopped indexing
@@ -50,18 +29,31 @@ for the rest of the run. Transaction inclusion and the agent's confirmed state
 are unaffected, because the agent reads the sequencer rather than the indexer.
 `docs/DEV_MODE_0_EVIDENCE.md` records what is and is not established.
 
-## 6. An unreachable owner holds over-limit spends
+## 4. An unreachable owner holds over-limit spends
 
 A spend above the limit is retried and never auto-approved. If the owner is
 permanently unreachable, the spend stays held until the owner returns.
 
-## 7. Key loss is permanent
+## 5. Key loss is permanent
 
 The agent's shielded keys and the signing key live on the agent's node. Loss of
 that key material means loss of the agent's identity and any funds it holds;
 this submission has no recovery path.
 
-## 8. No AI model is bundled
+## 6. No AI model is bundled
 
 The skill interface is model-agnostic and inference is left to the deployer.
 This is out of scope per the prize.
+
+## Resolved since the first submission
+
+Two items previously listed here are resolved and now carry their own evidence:
+
+- **The owner GUI click-through** is recorded: `recordings/basecamp-gui-demo.mp4`
+  (https://youtu.be/1Ck_0keFXek), a human-driven Basecamp session approving,
+  denying, and reconfiguring a live agent over real Waku, every decision
+  settled on chain. See `docs/BASECAMP_GUI_DEMO.md`.
+- **The public testnet dropping token-program transfers** (2026-08-22) was a
+  transient sequencer condition, no longer reproducible: on 2026-09-08 a
+  shielded token Send landed on the public testnet as a 271,076-byte
+  proof-bearing transaction (block 42709). See `docs/SHIELDED_TESTNET_PROOF.md`.

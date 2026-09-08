@@ -122,6 +122,13 @@ pending anchors.
 
 ## Transfer non-inclusion: verified diagnosis (2026-08-22)
 
+> **Resolved 2026-09-08:** this was a transient sequencer condition, no longer
+> reproducible. A shielded token `Send` now lands on the public testnet as a
+> 271,076-byte proof-bearing transaction (block 42709), and
+> `getProofsAndRoot`, the RPC the wallet needs to build the membership proofs,
+> is served. The diagnosis below is kept as the record of what was observed
+> and how it was pinned down; see `docs/SHIELDED_TESTNET_PROOF.md`.
+
 The discriminator was pinned down by querying the public RPC directly:
 
 - **Sibling mints from the same run are queryable** — `getTransaction` for a

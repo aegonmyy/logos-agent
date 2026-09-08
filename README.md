@@ -130,11 +130,6 @@ over a channel you trust (the owner channel) and later cards under the same
 - The Logos Core module loads an offline session: reflective, storage, and
   messaging skills run through the runtime, but the wallet-backed on-chain
   skills are not yet driven through the module session.
-- The Basecamp owner app's owner-channel FFI is implemented, unit-tested, and
-  verified across the C ABI (a standalone harness dlopens `liblogos_agent.so`
-  and exercises every owner-channel symbol), and the Qt module builds with the
-  Logos module builder (`nix build .#owner-install`). A runtime approve/deny
-  pass against a live agent + Waku node is still needed for full evidence.
 - In the recorded real-proof run, the standalone stack's indexer rejects a
   privacy-preserving proof while re-applying an early block and stops indexing
   for the rest of the run. Transaction inclusion and the agent's confirmed state
@@ -240,9 +235,11 @@ logoscore --config-dir "$LC" load-module agent_owner
 
 The owner-channel Rust FFI (`logos_agent_owner_channel_new` /
 `_poll` / `_decide` / `_configure_limit` / `_configure_period` / `_free` in
-`src/ffi.rs`) is unit-tested in-process and verified across the C ABI; the QML
-approve/deny UI builds with the Logos module builder. A runtime approve/deny
-pass against a live agent + Waku node is still needed for full evidence.
+`src/ffi.rs`) is verified end to end at runtime: `tests/owner_ffi_e2e.rs`
+(runs in CI) and `tests/owner_ffi_waku.rs` (real Waku as the transport) drive
+hold, poll, approve/deny, and reconfigure through this exact boundary, each
+decision settling on chain; `docs/BASECAMP_GUI_DEMO.md` records the app itself
+doing it against a live agent.
 
 ### 4. End-to-end demo
 
