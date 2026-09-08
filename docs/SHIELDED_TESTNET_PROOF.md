@@ -77,6 +77,9 @@ testnet at real-proof mode.
 ## CI
 
 The `e2e-real-proof` job in `.github/workflows/ci.yml` runs at
-`RISC0_DEV_MODE=0`: the agent spending flow on a local sequencer and the
-shielded-send probe against the public testnet. This is the real-proof CI
-lane; the fast `e2e` job remains at `DEV_MODE=1` for quick feedback.
+`RISC0_DEV_MODE=0`: the agent spending flow on a local sequencer (required,
+deterministic) and the shielded-send probe against the public testnet
+(best-effort with `continue-on-error`, since the public testnet flaps; the
+durable evidence is the committed RPC snapshot above). This is the
+real-proof CI lane; the fast `e2e` job remains at `DEV_MODE=1` for quick
+feedback.
