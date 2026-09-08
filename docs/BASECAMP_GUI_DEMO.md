@@ -23,6 +23,10 @@ agent's owner channel over real Logos Messaging (nwaku, Logos Dev Network
 cluster 2). The agent holds its own shielded LEZ account with a per-transaction
 limit of 30. The owner uses the GUI to approve, deny, and reconfigure the agent,
 and each decision settles on-chain against a standalone LEZ sequencer.
+Interaction is real time: while the channel is open the app auto-polls the
+owner channel every 3.5 s (`autoPollTimer` in `app/src/qml/Main.qml`), and the
+manual Poll button forces an immediate poll; the agent applies each decision on
+its next poll cycle.
 
 | Stage | Owner action (GUI) | Agent result | Balance |
 |---|---|---|---|
