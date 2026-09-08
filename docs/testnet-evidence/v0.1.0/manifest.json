@@ -1,0 +1,51 @@
+{
+  "schema_version": "logos-agent-lp0008-shielded-evidence-v1",
+  "generated_at": "2026-09-08T06:07:41Z",
+  "rpc_url": "https://testnet.lez.logos.co",
+  "lez_version": "v0.2.4",
+  "proof_mode": "RISC0_DEV_MODE=0",
+  "run_source_commit": "lp0008/gui-demo",
+  "test": "tests/testnet_shielded_probe.rs",
+  "description": "A shielded (PrivacyPreserving) token Send on the public LEZ testnet at RISC0_DEV_MODE=0. The on-chain transaction carries a real Groth16 proof in its witness set (271,076 bytes, type byte 0x01), not a 271-byte public transaction with no proof.",
+  "accounts": {
+    "definition": "6fxDP2NjawxxHxetnniKLUBNnNqaRZcUuXFJ9uKEhB2L",
+    "holder_public": "9xKyTYCqg7FnMzT5Lzxrnc9rvQM24TVfToR7b58iZnuU",
+    "recipient_private": "5y3JTqGGaGMHN4R5xod6xa7K28D1tgLMuxYUb1NQaRmn"
+  },
+  "token": {
+    "name": "SHIELDED-PROBE",
+    "total_supply": 100
+  },
+  "transactions": [
+    {
+      "name": "mint-01",
+      "kind": "Public",
+      "type_byte": "0x00",
+      "tx_hash": "2a57150d0646731e1092453049c169a92435b0ef064ee48b223fd82d3f6cb019",
+      "block_id": 42680,
+      "on_chain_size_bytes": 377,
+      "carries_zk_proof": false,
+      "rpc_snapshot": "rpc/mint-01.json",
+      "explorer": "https://explorer.testnet.lez.logos.co/transaction/2a57150d0646731e1092453049c169a92435b0ef064ee48b223fd82d3f6cb019"
+    },
+    {
+      "name": "shielded-send-01",
+      "kind": "PrivacyPreserving",
+      "type_byte": "0x01",
+      "tx_hash": "606bb9b50f0e15152281faf41d4c331f9eaa6997019a899db6d8d1683a722434",
+      "block_id": 42709,
+      "on_chain_size_bytes": 271076,
+      "carries_zk_proof": true,
+      "rpc_snapshot": "rpc/shielded-send-01.json",
+      "explorer": "https://explorer.testnet.lez.logos.co/transaction/606bb9b50f0e15152281faf41d4c331f9eaa6997019a899db6d8d1683a722434",
+      "effect": "holder balance 100 -> 90; 10 tokens sent to the private recipient account"
+    }
+  ],
+  "balance_progression": {
+    "after_mint": "holder = 100",
+    "after_shielded_send": "holder = 90 (10 sent to private recipient)"
+  },
+  "run_duration_seconds": 2214,
+  "reproduce": "RISC0_DEV_MODE=0 cargo test --test testnet_shielded_probe -- --ignored --nocapture --test-threads=1",
+  "note_on_ephemerality": "As with all public-testnet evidence, a chain reset by the operator invalidates the hashes and snapshots above; the reproducible test regenerates equivalent evidence against whatever testnet is live. The on-chain size and type byte are the invariant: a PrivacyPreserving transaction at DEV_MODE=0 is hundreds of kilobytes and carries the proof; a Public transaction is a few hundred bytes and does not."
+}

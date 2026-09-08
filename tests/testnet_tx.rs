@@ -1,10 +1,13 @@
 //! Real on-chain transactions on the live public LEZ testnet, with real proofs
 //! (RISC0_DEV_MODE=0), submitted to and accepted by the testnet sequencer.
 //!
-//! Note: the testnet's LEZ build does not expose `getProofForCommitment`, the
-//! shielded-pool RPC our private transactions need, so the agent's *shielded*
-//! flow can't complete there. This exercises the same token program with *public*
-//! accounts — a real, proof-backed mint + transfer on the live testnet.
+//! This exercises the token program with public accounts: a real, proof-backed
+//! mint + transfer on the live testnet. The shielded (PrivacyPreserving) flow
+//! is exercised separately in `tests/testnet_shielded_probe.rs`, which lands a
+//! proof-bearing PrivacyPreserving transaction on the public testnet (verified
+//! 2026-09-08: the testnet exposes `getProofsAndRoot`, so the wallet can build
+//! the shielded tx; the earlier "shielded flow can't complete" note was a
+//! transient sequencer condition, no longer reproducible).
 //!
 //! Ignored by default (needs the network, slow). Run with:
 //!   RISC0_DEV_MODE=0 cargo test -p logos_agent --test testnet_tx -- --ignored --nocapture

@@ -127,3 +127,42 @@ jobs:
 
       - name: "E2E: three category agents (storage, messaging, blockchain)"
         run: cargo test --test three_category_agents -- --nocapture --test-threads=1
+
+  # Real-proof e2e at RISC0_DEV_MODE=0. The fast e2e job above runs at DEV_MODE=1
+  # (fake proofs) for quick feedback; this job runs the same agent flows with
+  # real Groth16 proofs so CI proves the proving path, not just the logic.
+  # Real proving is slow (~10-15 min per shielded tx), so this job runs a
+  # focused subset: the agent spending flow (shielded account, hold, spend) and
+  # the shielded-send probe against the public LEZ testnet, which lands a
+  # proof-bearing on-chain transaction (the evidence the submission cites).
+  e2e-real-proof:
+    runs-on: [self-hosted, linux]
+    env:
+      RISC0_DEV_MODE: "0"
+      CARGO_TERM_COLOR: always
+      CARGO_HOME: /tmp/ci-cargo-home
+      CARGO_TARGET_DIR: /tmp/ci-e2e-target
+    steps:
+      - name: Reclaim workspace (older runs may have left root-owned files)
+        run: sudo chown -R "$(id -u):$(id -g)" "$RUNNER_WORKSPACE" 2>/dev/null || true
+
+      - uses: actions/checkout@v4
+
+      - name: Stub blockchain circuits (no proving in CI)
+        run: |
+          for d in pol poc poq zksign; do
+            mkdir -p "$HOME/.logos-blockchain-circuits/$d"
+            echo '{"type":"stub"}' > "$HOME/.logos-blockchain-circuits/$d/verification_key.json"
+          done
+          echo "v0.4.2" > "$HOME/.logos-blockchain-circuits/VERSION"
+
+      - name: Pin cargo to the real 1.94.0 toolchain
+        run: echo "$HOME/.rustup/toolchains/1.94.0-x86_64-unknown-linux-gnu/bin" >> "$GITHUB_PATH"
+
+      - name: "E2E (real proof): agent on a local LEZ sequencer (shielded account, spend, hold)"
+        run: cargo test --test agent_spending -- --nocapture --test-threads=1
+
+      - name: "E2E (real proof): shielded send on the public LEZ testnet (proof-bearing on-chain tx)"
+        run: cargo test --test testnet_shielded_probe -- --ignored --nocapture --test-threads=1
+        env:
+          AGENT_TESTNET_URL: https://testnet.lez.logos.co
