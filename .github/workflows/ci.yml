@@ -88,6 +88,12 @@ jobs:
       CARGO_TERM_COLOR: always
       CARGO_HOME: /tmp/ci-cargo-home
       CARGO_TARGET_DIR: /tmp/ci-e2e-target
+      # The runner process is root, but the rust 1.94.0 toolchain and the risc0
+      # (r0vm) install both live under /home/ubuntu. GitHub Actions overrides
+      # HOME to a temp dir per step, which makes risc0-build panic ("Could not
+      # determine home directory") and breaks cargo resolution. Point HOME at
+      # the real install so risc0-build finds r0vm and the toolchain resolves.
+      HOME: /home/ubuntu
     steps:
       - name: Reclaim workspace (older runs may have left root-owned files)
         run: sudo chown -R "$(id -u):$(id -g)" "$RUNNER_WORKSPACE" 2>/dev/null || true
@@ -148,6 +154,7 @@ jobs:
       CARGO_TERM_COLOR: always
       CARGO_HOME: /tmp/ci-cargo-home
       CARGO_TARGET_DIR: /tmp/ci-e2e-target
+      HOME: /home/ubuntu
     steps:
       - name: Reclaim workspace (older runs may have left root-owned files)
         run: sudo chown -R "$(id -u):$(id -g)" "$RUNNER_WORKSPACE" 2>/dev/null || true
