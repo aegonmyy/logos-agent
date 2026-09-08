@@ -114,13 +114,32 @@ pub struct WakuMessaging {
     http: reqwest::Client,
 }
 
+/// HTTP client for the agent's Logos-service endpoints (nwaku REST here,
+/// Codex REST in `storage.rs`). Connect and read timeouts are set so a dead
+/// connection — a node that vanished without a TCP reset — surfaces as an
+/// ordinary error within seconds instead of hanging the caller forever;
+/// callers treat that error as transient and retry (the agent loop on its
+/// next poll, a skill dispatch by returning the error to its caller).
+pub(crate) fn build_http_client() -> reqwest::Client {
+    reqwest::Client::builder()
+        .connect_timeout(std::time::Duration::from_secs(10))
+        .read_timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("reqwest client with timeouts")
+}
+
 impl WakuMessaging {
     /// `base` is the nwaku REST endpoint, e.g. `http://127.0.0.1:8645`.
+    ///
+    /// The client carries connect and read timeouts so a dead connection (a
+    /// node that vanished without a TCP reset) surfaces as an ordinary error
+    /// within seconds instead of hanging the caller forever; the agent loop
+    /// logs the error and retries on the next poll.
     #[must_use]
     pub fn new(base: impl Into<String>) -> Self {
         Self {
             base: base.into().trim_end_matches('/').to_owned(),
-            http: reqwest::Client::new(),
+            http: build_http_client(),
         }
     }
 }

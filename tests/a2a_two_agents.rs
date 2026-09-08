@@ -106,7 +106,7 @@ async fn a2a_task_ledger_survives_restart() -> Result<()> {
     Ok(())
 }
 
-const DISCOVERY: &str = "/logos-agent/1/a2a/discovery/proto";
+const DISCOVERY: &str = "/logos-agent/1/a2a-discovery/proto";
 
 #[tokio::test]
 async fn two_agents_discover_run_task_and_settle_payment() -> Result<()> {

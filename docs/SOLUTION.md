@@ -112,7 +112,7 @@ reimplemented — and the agent is indistinguishable on-chain from any other hol
 - [x] Above-threshold spends that are not approved are never executed.
 - [x] Skill failures are isolated — a failing skill returns an error and does not
       crash the agent or other skills; A2A surfaces it as a `failed` task. Proven
-      by a dedicated test (`a2a::tests::failing_skill_isolated...`): a failing
+      by a dedicated test (`a2a::tests::failing_skill_is_isolated_and_does_not_affect_other_tasks`): a failing
       skill and a working skill served in the same round; the failing task
       surfaces as `failed` with its error, the neighbouring task completes.
 - [x] Recovers pending approvals across restarts — the runtime persists pending

@@ -23,7 +23,7 @@ use wallet::{AccountIdentity, WalletCore};
 
 use crate::messaging::Messaging;
 use crate::storage::Storage;
-use crate::{Agent, SpendOutcome};
+use crate::{Agent, PolicyDecision, SpendOutcome};
 
 /// Parse a 64-hex-char program id into the platform's `[u32; 8]` form.
 fn program_id_from_hex(hex_str: &str) -> Result<[u32; 8]> {
@@ -55,11 +55,22 @@ pub struct ParamSpec {
 }
 
 impl ParamSpec {
-    const fn required(name: &'static str, description: &'static str) -> Self {
+    /// Declare a required parameter. Public so third-party skills (defined
+    /// outside this crate) can build the same param specs the built-in skills
+    /// do; `tests/third_party_skill.rs` is the out-of-crate proof.
+    pub const fn required(name: &'static str, description: &'static str) -> Self {
         Self {
             name,
             description,
             required: true,
+        }
+    }
+    /// Declare an optional parameter.
+    pub const fn optional(name: &'static str, description: &'static str) -> Self {
+        Self {
+            name,
+            description,
+            required: false,
         }
     }
 }
@@ -249,6 +260,19 @@ impl SkillRegistry {
                 let skill = self
                     .find(name)
                     .with_context(|| format!("unknown skill: {name}"))?;
+                // The declared contract is enforced at dispatch: a required
+                // parameter must be present (and non-null) before the skill
+                // runs. Skills still read their own arguments, but a caller
+                // cannot omit a parameter the catalogue declares required.
+                for spec in skill.params() {
+                    if spec.required {
+                        let present = args
+                            .get(spec.name)
+                            .map(|value| !value.is_null())
+                            .unwrap_or(false);
+                        anyhow::ensure!(present, "missing required parameter: {}", spec.name);
+                    }
+                }
                 skill.invoke(ctx, args).await
             }
         }
@@ -626,9 +650,40 @@ impl Skill for ProgramCall {
             ParamSpec::required("program_id", "64-hex-char program id."),
             ParamSpec::required("accounts", "Array of public account ids the call touches."),
             ParamSpec::required("instruction", "Instruction as an array of u32 words."),
+            ParamSpec::optional(
+                "spend",
+                "Tokens the call may move on the agent's behalf; checked against the spending threshold.",
+            ),
         ]
     }
     async fn invoke(&self, ctx: &mut SkillContext<'_>, args: Value) -> Result<Value> {
+        // Subject to the spending threshold, like wallet.send. The instruction
+        // stream is opaque to the agent, so it cannot price the call itself:
+        // the caller declares the token value the call may move, and the
+        // declared spend goes through the same policy gate. An undeclared call
+        // is unpriced (potentially the whole balance), so it is always held.
+        let declared = match args.get("spend") {
+            None => None,
+            Some(value) => Some(
+                value
+                    .as_u64()
+                    .map(u128::from)
+                    .or_else(|| value.as_str().and_then(|s| s.parse().ok()))
+                    .with_context(|| "`spend` must be a token amount")?,
+            ),
+        };
+        if let PolicyDecision::OverPerTx { limit }
+        | PolicyDecision::OverPerPeriod { limit } =
+            ctx.agent.check_policy(declared.unwrap_or(u128::MAX))
+        {
+            return Ok(json!({
+                "status": "needs_owner_approval",
+                "program_id": arg_str(&args, "program_id")?,
+                "declared_spend": declared.map(|amount| amount.to_string()),
+                "limit": limit.to_string(),
+            }));
+        }
+
         let program_id = program_id_from_hex(&arg_str(&args, "program_id")?)?;
 
         let accounts = args
@@ -667,6 +722,12 @@ impl Skill for ProgramCall {
             .send_pub_tx(accounts, instruction, program_id)
             .await
             .map_err(|err| anyhow!("program call failed: {err:?}"))?;
+        // Count a declared spend against the period allowance, exactly as a
+        // wallet.send of the same amount would, so repeated program calls
+        // cannot drain the aggregate allowance.
+        if let Some(spend) = declared {
+            ctx.agent.record_period_spend(spend);
+        }
         Ok(json!({ "tx_hash": format!("{hash}") }))
     }
 }

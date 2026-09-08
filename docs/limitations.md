@@ -54,6 +54,7 @@ Two items previously listed here are resolved and now carry their own evidence:
   denying, and reconfiguring a live agent over real Waku, every decision
   settled on chain. See `docs/BASECAMP_GUI_DEMO.md`.
 - **The public testnet dropping token-program transfers** (2026-08-22) was a
-  transient sequencer condition, no longer reproducible: on 2026-09-08 a
-  shielded token Send landed on the public testnet as a 271,076-byte
-  proof-bearing transaction (block 42709). See `docs/SHIELDED_TESTNET_PROOF.md`.
+  transient sequencer condition, no longer reproducible: on 2026-09-08 the
+  agent's shielded send landed on the public testnet as proof-bearing
+  `PrivacyPreserving` transactions (270-273 KB, blocks 88-118 after the
+  operator's same-day chain reset). See `docs/SHIELDED_TESTNET_PROOF.md`.

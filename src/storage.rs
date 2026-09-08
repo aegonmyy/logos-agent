@@ -139,11 +139,15 @@ pub struct CodexStorage {
 
 impl CodexStorage {
     /// `base` is the Codex REST endpoint, e.g. `http://127.0.0.1:8080`.
+    ///
+    /// The HTTP client carries connect and read timeouts (see
+    /// [`crate::messaging::build_http_client`]) so a dead Codex connection
+    /// errors within seconds instead of hanging the calling skill.
     #[must_use]
     pub fn new(base: impl Into<String>, key: [u8; 32]) -> Self {
         Self {
             base: base.into().trim_end_matches('/').to_owned(),
-            http: reqwest::Client::new(),
+            http: crate::messaging::build_http_client(),
             key,
             index: Mutex::new(Vec::new()),
         }

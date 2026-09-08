@@ -453,6 +453,22 @@ mod tests {
         let _ = std::fs::remove_file(&path);
     }
 
+    /// The per-transaction gate is strict: a spend exactly at the limit is
+    /// still autonomous ("above-threshold" means strictly above); one token
+    /// more is held for the owner.
+    #[test]
+    fn per_tx_boundary_at_the_limit_is_autonomous() {
+        let mut policy = test_policy();
+        policy.per_tx_limit = 50;
+        policy.per_period_limit = 0; // disable the period gate; isolate the boundary
+        let agent = Agent::from_parts(test_account_id(), policy);
+        assert!(matches!(agent.check_policy(50), PolicyDecision::Allow));
+        assert!(matches!(
+            agent.check_policy(51),
+            PolicyDecision::OverPerTx { .. }
+        ));
+    }
+
     /// Without persistence enabled the accumulator is in-memory only, and the
     /// allowance still rolls over once the period elapses.
     #[test]

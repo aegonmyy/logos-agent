@@ -121,5 +121,52 @@ async fn full_default_skill_catalogue_and_meta_configure() -> Result<()> {
     assert_eq!(configured["per_period_limit"], "250");
     assert_eq!(agent.period_policy().0, 250);
 
+    // program.call is subject to the spending threshold (the live limit is now
+    // 99): an undeclared call is unpriced (potentially the whole balance) and
+    // held; a declared spend over the limit is held. Both hold before any
+    // wallet access, so no chain is needed here; the within-limit leg is
+    // exercised by the live program suites.
+    {
+        let mut ctx = SkillContext {
+            wallet: None,
+            agent: &agent,
+        };
+        let held = registry
+            .dispatch(
+                "program.call",
+                &mut ctx,
+                json!({
+                    "program_id": "1".repeat(64),
+                    "accounts": ["Ds8q5PjLcKwwV97Zi7duhRVF9uwA2PuYMoLL7FwCzsXE"],
+                    "instruction": [],
+                }),
+            )
+            .await?;
+        assert_eq!(held["status"], "needs_owner_approval");
+        assert_eq!(held["limit"], "99");
+        assert_eq!(held["declared_spend"], serde_json::Value::Null);
+    }
+    {
+        let mut ctx = SkillContext {
+            wallet: None,
+            agent: &agent,
+        };
+        let held = registry
+            .dispatch(
+                "program.call",
+                &mut ctx,
+                json!({
+                    "program_id": "1".repeat(64),
+                    "accounts": ["Ds8q5PjLcKwwV97Zi7duhRVF9uwA2PuYMoLL7FwCzsXE"],
+                    "instruction": [],
+                    "spend": 100,
+                }),
+            )
+            .await?;
+        assert_eq!(held["status"], "needs_owner_approval");
+        assert_eq!(held["declared_spend"], "100");
+        assert_eq!(held["limit"], "99");
+    }
+
     Ok(())
 }

@@ -184,6 +184,9 @@ async fn three_agents_settle_through_deployed_program_on_public_testnet() -> Res
                         "program_id": program_id_hex,
                         "accounts": [account.to_string()],
                         "instruction": [],
+                        // The claimer pays from the program's escrow, so this
+                        // call moves none of the agent's own tokens: spend 0.
+                        "spend": 0,
                     }),
                 )
                 .await?

@@ -102,6 +102,9 @@ async fn program_deploy_call_and_query_on_a_sequencer() -> Result<()> {
                     "program_id": program_id_hex,
                     "accounts": [account.to_string()],
                     "instruction": [],
+                    // The claimer pays from the program's escrow, so this call
+                    // moves none of the agent's own tokens: declared spend 0.
+                    "spend": 0,
                 }),
             )
             .await?

@@ -161,12 +161,16 @@ pub struct Task {
     pub result: Option<Value>,
 }
 
+// Waku content topics must be exactly four segments
+// ({app}/{version}/{topic}/{encoding}); the a2a role lives inside the third
+// segment. A deeper path (e.g. .../1/a2a/{account}/inbox/proto) is rejected
+// by nwaku's autosharding ("generation should be a numeric value").
 fn inbox_topic(agent: &AccountId) -> String {
-    format!("/logos-agent/1/a2a/{agent}/inbox/proto")
+    format!("/logos-agent/1/a2a-{agent}-inbox/proto")
 }
 
 fn updates_topic(agent: &AccountId) -> String {
-    format!("/logos-agent/1/a2a/{agent}/updates/proto")
+    format!("/logos-agent/1/a2a-{agent}-updates/proto")
 }
 
 /// A provider agent: advertises skills, serves task requests from its registry,
@@ -750,7 +754,7 @@ mod tests {
     /// still verifies — the signature survives the JSON transport.
     #[tokio::test]
     async fn signed_card_round_trips_through_discovery() {
-        const DISCOVERY: &str = "/logos-agent/1/a2a/discovery-test/proto";
+        const DISCOVERY: &str = "/logos-agent/1/a2a-discovery-test/proto";
         let messaging = Arc::new(InMemoryMessaging::new());
         let mut registry = SkillRegistry::new();
         registry.register(Box::new(crate::skills::EchoSkill));

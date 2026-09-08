@@ -35,6 +35,10 @@ tokio = { version = "1.50", features = ["rt-multi-thread", "macros", "time"] }
 wallet = { git = "https://github.com/logos-blockchain/logos-execution-zone.git", tag = "v0.2.4" }
 
 [dev-dependencies]
+# Borsh block/transaction decoding for the testnet agent-spend test's
+# getBlockRange scan (matches the execution-zone workspace pin).
+borsh = "1.5.7"
+common = { git = "https://github.com/logos-blockchain/logos-execution-zone.git", tag = "v0.2.4" }
 test_fixtures = { git = "https://github.com/logos-blockchain/logos-execution-zone.git", tag = "v0.2.4" }
 # Compiled sample LEZ programs (RISC0 guests) — used only by the live
 # program.deploy/call/query integration test.

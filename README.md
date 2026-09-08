@@ -61,7 +61,8 @@ change is needed to add a capability. The default skills are:
 - **Storage** — `storage.upload`, `storage.download`, `storage.list`, `storage.share`
 - **Messaging** — `messaging.send`, `messaging.join`, `messaging.create_group`
 - **Blockchain** — `wallet.balance`, `wallet.send`, `wallet.history`,
-  `program.query`, `program.call`, `program.deploy`
+  `program.query`, `program.call`, `program.deploy`. Both `wallet.send` and
+  `program.call` are subject to the spending threshold (see below).
 - **Meta** — `meta.skills`, `meta.status`, `meta.configure`
 - **A2A** — `agent.card`, `agent.discover`, `agent.task`, `agent.subscribe`,
   `agent.cancel`; these are stateful coordination operations backed by
@@ -86,10 +87,18 @@ the period allowance: the headless binary writes it next to its state file, and
 An owner-approved over-limit spend is the only path that bypasses the limit, via
 `Agent::send_approved`, which callers other than the approval flow should not use.
 
+`program.call` goes through the same gate. Its instruction stream is opaque to
+the agent, so the caller declares the token value the call may move (`spend`):
+a declared spend within the limits executes, over either limit it is held, and
+an undeclared call is treated as unpriced (potentially the whole balance) and
+always held for the owner.
+
 ### A2A coordination
 
 Agent Cards follow the A2A schema (`protocolVersion`, `name`, `capabilities`,
-`skills`), with two Logos-native substitutions:
+`skills`), with two Logos-native substitutions (the full binding spec, with the
+concept mapping and wire formats, is in
+[`docs/A2A_BINDING.md`](docs/A2A_BINDING.md)):
 
 - **Transport** is Logos Messaging. The card's `address` is a Waku topic instead
   of an HTTP URL; task requests and status updates are messages on derived topics.
@@ -258,6 +267,14 @@ doing it against a live agent.
 (`RISC0_DEV_MODE=0`) — the on-screen proof generation is the evidence dev mode is
 off. See the script header for what it exercises.
 
+## Skill interface
+
+The full skill contract, the 21-skill default catalogue with every parameter
+and return shape, dispatch semantics, and the third-party registration path
+are specified in [`docs/SKILL_INTERFACE.md`](docs/SKILL_INTERFACE.md). The
+catalogue is also queryable at runtime via `meta.skills` and pinned in CI by
+`tests/full_skill_catalogue.rs`, so the spec and the code cannot drift.
+
 ## Compute-unit costs
 
 On-chain operation costs are measured, not estimated: a token transfer (the
@@ -283,6 +300,7 @@ RISC0_DEV_MODE=0 cargo test -p logos_agent   # real proofs, as evaluated
 | `owner_approval_flow` | approve / deny / reconfigure over the owner channel |
 | `owner_ffi_e2e` | the same over the FFI owner handle (the Basecamp app boundary), with on-chain execution |
 | `a2a_two_agents` | discovery, task lifecycle, autonomous LEZ payment |
+| `a2a_two_agents_waku` | the same two-agent flow with real Waku as the coordination transport (card discovery, task round-trip, and payment all through a live nwaku node); ignored, needs an nwaku node |
 | `three_use_cases_local` | the three use cases end-to-end (vault, notary, paid task) |
 | `three_category_agents` | three agents, one per skill category, each with its own identity |
 | `owner_ffi_waku` | the FFI owner run with real Waku as the transport (agent and owner each run their own nwaku client), spend still executing on-chain; ignored, needs an nwaku node |

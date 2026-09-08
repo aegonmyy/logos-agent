@@ -1,0 +1,220 @@
+   Compiling test_programs v0.1.0 (https://github.com/logos-blockchain/logos-execution-zone.git?tag=v0.2.4#47eba256)
+   Compiling logos_agent v0.1.0 (/home/ubuntu/logos-agent)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 8.43s
+     Running tests/three_testnet_settlements.rs (target/debug/deps/three_testnet_settlements-1a5687ce6cd38e22)
+
+running 1 test
+test three_agents_settle_through_deployed_program_on_public_testnet ... Config not found, setting up default config
+Created configs dir at path /tmp/logos-agent-settlements-462065
+Configs set up
+Statistics not found, choosing empty
+Latest block is 147
+Syncing to block 147. Blocks to sync: 147
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Synced to block 147 in 2.633261058s
+Generated new account with account_id Private/J5rSnZQXSj5RmPEahcBF4sEUQMH138wWQFx6McAANGrE at path /0
+With npk a1a4a3c81f85d96a779a6a91ef0d650000b73537b80ace0ad005e00e8a494142
+With vpk 4ba10c48144e239197dc3c9967bc2928f01b2274307c4c9fdb49b4b4618eea053ccd527277e9768f399b3c95c8f0fa0c6ad85e5df6a3b9fc9bc6f7450be6b13d6875c5177e65ec4d72b522efd016ba9ba80c833e219a0cd9e5787c11c784cb93e60c28ea674a2dd16ce8a519678460a12b4466792abe574ed42321e1f73d640bb2cdd4455ad2488a0a801b0c205fd1962fc09fc62a13d5714895e232f91273df0448ed3570acb048b1871788d2b98734a25cca3031b91375125c58117391c04b319a1ec5287254399dcf4cca279703478bb2db9c6022b29e036947b034985412104a99a54a3668ee323b094779f95053f56b8adb34884ce630c6209258cabe37d792ba9283ca0102a04b2c09aa249dc5339b57bfce057190297b6977b6a55755b7f5b909147e3a97b26dfb08c152489ec53e32f8087c9448ccea3c5cb60720d152e4e37846c524cee17ee9f5a546ba6a4b5170b056794ffb638fb139f87509f50840109c98a8a139658a6335b31ce1a24c3a3726e047c07ef57f43dcc6f1c25d1a23a9a0d0085d155c6459c021024537501e34a5cc552b4462180e33d390d9da231fc176814670d8050f3c68b707903623c1c7556a5f0378ab5ba3500af5c941f1a6d8ea26c2da31a09ba132b7a7b774358c00229fb8a33e90ae6f381be32c4edb731e5f31924f5a42676997c6d43f74b09165aa1ff2b72c90980ed449cfab543200cbc26161ad09694898b883839b617bbacd3af1035c5451a13971ebd21478e73295c8c0d3107f4dc73bd07438770243ff62163cc01d16102d6e1ba84b3b8473234f27154e32c8b12fa9b64f5945fbc6afb5e28c0333c83a85bce35500ffeabb1da6200613cfed88a3b7936cda45133604a8ecd95d5476091225bdfe10ae55f18b74392a1ba1c1d3585ef592c6e974a1d5e24cf2e15b8487479e15511b954f6a7a79abd7a361705926800f5fd8cc884332c85736989ba75968769481050077bf95c3abbcf2788c4c1bf913299df8642447557600ccab821365d07f5cd2570186c3cfb9434a1123e0a880c5c433a9732b6579b1ee757219d56161d862bcb5b39c6550f48460811761a5047f8d0994e8977510a03fcbe7264dd917a04c8948316df8756082508715901f945083ea9c38d3d847861a430b4ac7ceec052a646070d621d53b8a7ff5213bd0bdd895c49f0c2e83b88ad0e18b86f835b6f39cc93c084952b195bc91388901a520818ca16be0ec7bf73855569b89e88c8a017bbdbb905eaf51ad7ac20aa200b62f34a11363af1551c2dc630309777a0546136f0a1146064faaea7ab77bcc02b610919c0ff606845b0b99db31380ac5540f991e15270510bc7c8db3546fac1cab051fdb2a0e7bd8b063e90b9b1c80ef751e3db608b25c5015ccb253c160a9a590ac42c288684cb51a64b7096b7b56665e20893f951c0ed09de7d1ac55c9c30b4a9cb3183ff6da55e51a8ef1c405a5eb7af0f4c8a6d010e1a675df4491ff10c967c3353ae78cb3593b4a600a43db3cef69a50e59a3fbecacf7578709023d52059bb2938670e164400347181b7de1facfb95a30fcd30fa5835b2a20a86681a7cc05a97f70934c5248c6b8c45a3ca9b3ec1311a51e8e26918fd7a3b6f6739b626405d9a2ca13c155c1293b3b8bf44fd489d35479a9af5883
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored statistics at /tmp/logos-agent-settlements-462065/statistics.json
+settlement agent category=storage account=J5rSnZQXSj5RmPEahcBF4sEUQMH138wWQFx6McAANGrE
+Generated new account with account_id Private/3zayiWMy7YPXSZBzijexYCtEJCxvGuRnhr2JMEh2zyby at path /1
+With npk d416c776a0b74fea1eaa8668f85a20f0e82488fa5826f418e1088be97d257a3c
+With vpk 9b5b165747559b55c777f70b69107e5f0c2a8f8a72a354ae2bfc6f4595bc40766be9846cf8555a5aa480f509657b005646a2ba807267cd081dc1d631caf31aeff743c0b58530959f4b17758ffba6e45952e03135e09149fb17c9a257a965c9669f120fff7a539cca01ae8481c11695e7b5c7f276a2ffa835d0c5801d157f470181f6eaa4d988c525455f6477c5bc0cc98ce8b875a7a09a9cacf603a0a9c32cbf227edcb8bffc0cbe29ec0e37cc748d233201f6c0e4e12fa2ec5e56bc3a2b24334b515d68e89720f426b1b90d47cbb1f25b01b59a1e5d62ca82ec528f493fa31976ad622df56c0cbcfa31d627b88731a2121c598501c72bb8139d403a5a0c0e87403b66760f59a09a66f9a666a4b695a1adfbcba560767617326f5b728549447eeae06793680093a024d67681ce9ac5d1d9b4b9f905a5db4f96e86f3230a184825111b87cf6e545f3ac9daf6cc4006b5aa1974bb357783820a753c28ca22c1c55f5ba125444163299f94545d4027145ac929cb1bfc9590e6b43c16dfc19e5d560c9216d219864523a107be81093ba7d07a66e23731ae3f6862fa06f93c94c22d41e02b7a087423370c1072b5aa4a2998d767c025a7564a7a615e7ba48b3ab5276b71e6ec120bb88996b56a5f34aa2542563c82a2c3f34aa76054d96316cde967c1863c2422a3877d2a8b709b487175e52c4ade919a7d25516c2bab8fe95156729be4a3147b34973acec3bba7c156b1ac358860f9db6379b39c7c69bb7dfc2844191be373554bfb0af6b499aee257111803c7fa02183c9096bb55a62411be4f6afedf01336688ac098b225142304e2543a0a1d6152aa8d3a2fd7345a916505583bc1d9d6575ca89bef3563573a1e4c8b97647ab628ac1c76a895f1514736b7277769546d8c04a30525e5b296faf869c4c0920729274569a19fd0578eeb223bd012848a0e67092a64ba30ee247662062421d63674da506a757abb84149c9172f7817ceb7978745b510165b681b48a18eb21fb603599676086f95a13a71a5d932a53296108f36ac9831df5b5c83920bca222110b458002225a56e31925f96a70b15e5e4121787c75aa9096f1c1303cc9793841a015827b5361270fb8246d71965c8c0988f44005d10794318170804ba8da872f1a5b66a4478f05cb4e1305d9ec3e6808065164c4c8e38173c07dfea69334437304f65478b790c2cc452e84c747283ca0168462b053a03b35dc56713c85780d0ab3f711980b3a99dd497f6b4157779c9038a980ce6b2657405cdb919c024c0e27c5b2475a74bb815395c951bb5621803a2dfa4a5fcf78ab8ffc896e05c39ee872c7e05ea9057d2f397f246cc4b2f12d18b2b5f7d79e6c80073a02b6c2bb4373fcaf8a829a65f9cc0a587c8c170c54e945d797272acb87d0d53da0dc3e1b5a41b10326840cc6a774c4631b20851754ee843401c1583108549eb4223ca31372627a72f045f52271e3a412cfc484d16054e6945e49164d7964a8a0380ecef383ba7304ec553a25950dfb338ce5560177c33f5bbc65e4dbce3d41c5712ca4465a20282414cba12ae2049f6c019356d12efa1658e1997ee5a917db194aa957ba2d9443531349fdd3a7ce7119ce67ba3b37bff5c42d2e35bbe6e5b221929aa504645b39929548b7d878ca23bc5d2c075b0096
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored statistics at /tmp/logos-agent-settlements-462065/statistics.json
+settlement agent category=messaging account=3zayiWMy7YPXSZBzijexYCtEJCxvGuRnhr2JMEh2zyby
+Generated new account with account_id Private/55ofLEStthcMSz3TKbJdrJ4sgi6qK465wZ7u85T7bwqQ at path /0/0
+With npk fd3855eb160f095642bebd4f097c101b8f1b94caa8dbd09b65b2a81253479c37
+With vpk 5aa437c2c4b647208cc5657c38b2b083d69922135a83683fac21b5610a565f38bc82312d7edb0633f066e44010eec230f83036d889a767402521d9869f063d74521c3bd6638adc7470ca1471027e3f792c9a99240f3928a1988d47ec449d86af4ab1380f290ba642b47e5a2eec73528c5b202cc5b89e11addad2cc6a2a3fcb27b4533a84ceeb702f71a386b96882e09d9272cec1780474a0b6d5ebb3aeaaaef5ec41f431a18c58b8439bb821b1c8c8d2c2446755e01936cf95bf79047aeb73405b3c56129055cc933caf2b803f29c390413a1fe813d51a5450e21d58329eab568a5902cfe1a757d72b08c228cba89c01c970cc9b02241ab9ade12b6b65b3a4943c61d55a6076238492542dcd81cc2340293604045a8839597195771383f871c137fb704a43c1a512c30b82480e501a90eb2ef3e0968b3813690224d9fab13eb507dc484a24cc7a5201973d238f7faba3b4f27f2c6ca683f7948df0cf1d479f6251876359cb3cf55490f3a39d2c11ef894afa357e1756a8a9510b107c922f5abdd5baa03a94204dd1c8ba3a7e5d4540eb808a03b615aee960103769b415a24210286b8ca46b89b327e915bfd28bbdfc4fcfc430a02cb76b904ca065aea5825a5dfc669ad2a8450c57e27046d84309334a1e3bd29df2c9b6e8e66633ca8f51e949ef557b6fa73eee24807dd9cb7e690efba886b68c5f17695f670277316293e348c47bb31567f11ef484a40d96b35df31f9ac720da004fa037bd36ac97f458844c7721af9c3f9d970f010685b9075c4e3b58a1fb1c98ab6f33d6b7522145461b1d6645ba75b9b5511972e4d79d00250793974f00209c94003b2a15c19dc08659c66e5cc796bd437fcfc35ffb809945e240735781ee0717925a64984ccf1cd17ee8385c1e1602fe307a4111a6ee62728a379c2eeb1c7fc1c8f3c42065108a44c52aa86695c361bcbeba1e436ca455abb3b2f6658b792f7c7074d6d97f1d771becdc5c5a2a7f07195df4c75b1335a0ae6a74c1229558385fa03723bc6605c293248370a26a7485b56a09735c9a5971118840703f3217e6fb9db45a7abdfc30fd5726f8a8c20d5aae9553480700506a246fa19582da01473f2a8f50243082912b5ba87de9fa2d2ac9276a799593a4a8642047aedab6c04a525b0a3953f4065cc92e5506c3276b29cb303585a7a462d028c5a50ecb95cbb95882b5b2ce492797bc93898233585ab3ab462a038f814aeeac0dbbc5605bb96b26c6cc96bb70f24b4a6f476235498f2005a6b2e72f72a56c26f1b79e09763e3a0cb771b40073536a8574dffaa0af15aeaaa66299da128f191a394aa17c8475049871e6cca0c370af6a4539efdab766733326e02491043335bbb45517a50e441549c1a8f3d0525aba91f0d20b167b2fb7a3c7608261f6b46a763845ae218bc716b4dc306bcb799d3c55af10caba76918b2e5417540cba947407fa9035da34859ffc823b4804cb453b6a83a6162b3457e0c8504366326987caa095791a51081b409ca670f586a25eb10ae771b73131271bfc0ba6c89286223f5034a23ea70fb1d6bda8715c3b67929adc1d7ea9715e5556bc57485931a0edd154b992211a65881d188ef43710f32c18fed76e4d2942ac7ada8a0794752a7b639ad15bec5b62e6a941dd15969b184fe51ddf90
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored statistics at /tmp/logos-agent-settlements-462065/statistics.json
+settlement agent category=blockchain account=55ofLEStthcMSz3TKbJdrJ4sgi6qK465wZ7u85T7bwqQ
+Transaction hash is 810ac460c5bb2b46a3868fb699635be5059496478db48c98809c107a04ee3d67
+Transaction is included in block 144
+Transaction data is ProgramDeployment(ProgramDeploymentTransaction { message: Message { bytecode: <343392 bytes> } })
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored statistics at /tmp/logos-agent-settlements-462065/statistics.json
+program deployed id=937554f71c96d8ace11298d2d3342e0b4ffa7d61fb394c1706a78c088f4ea471
+Latest block is 147
+Generated new account with account_id Public/Eh3VZWvqR7ykNhbGUCpJASVFMZKK1uSP6Coooon691LB at path /0
+With pk acec1f52a64ed049afbfb5cc0617c0cd4c1dff27354601a8424156670bd03280
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored statistics at /tmp/logos-agent-settlements-462065/statistics.json
+transaction 155731c68cce04f856ad501f568bfb618cc18793705230d7ffcff548f74416cf included in block 148
+Latest block is 148
+Syncing to block 148. Blocks to sync: 1
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Synced to block 148 in 181.734277ms
+testnet settlement category=storage tx=155731c68cce04f856ad501f568bfb618cc18793705230d7ffcff548f74416cf account=Eh3VZWvqR7ykNhbGUCpJASVFMZKK1uSP6Coooon691LB state=included_block=148 verified=true
+Generated new account with account_id Public/DobLogYLioMgMuUsS3Q62HQUotLXYmALPRXzLwZi3YK5 at path /1
+With pk ecab7e494991e2bc8e8ab0c2b174bce74949f473601181799b11ac13334f8bbf
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored statistics at /tmp/logos-agent-settlements-462065/statistics.json
+transaction adf2ae7455e40315f2b5e31f1dc1b66b2c137f5bd88df483189202a704f94d9c included in block 149
+Latest block is 149
+Syncing to block 149. Blocks to sync: 1
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Synced to block 149 in 197.954048ms
+testnet settlement category=messaging tx=adf2ae7455e40315f2b5e31f1dc1b66b2c137f5bd88df483189202a704f94d9c account=DobLogYLioMgMuUsS3Q62HQUotLXYmALPRXzLwZi3YK5 state=included_block=149 verified=true
+Generated new account with account_id Public/5xuG2G3NRqXTGoUiGyxjBo3FMy1W9UWA6Ux2qfTCrp4A at path /0/0
+With pk b664aa49433ef47c7e8449b95f215da683217dc941e9b2934d84b879dbb240ce
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Stored statistics at /tmp/logos-agent-settlements-462065/statistics.json
+transaction f589abe4dac0fc0ba40e00614a43ae67b2045cfc24e00884c1574de0be15bd54 included in block 150
+Latest block is 150
+Syncing to block 150. Blocks to sync: 1
+Stored persistent accounts at /tmp/logos-agent-settlements-462065/storage
+Synced to block 150 in 216.244093ms
+testnet settlement category=blockchain tx=f589abe4dac0fc0ba40e00614a43ae67b2045cfc24e00884c1574de0be15bd54 account=5xuG2G3NRqXTGoUiGyxjBo3FMy1W9UWA6Ux2qfTCrp4A state=included_block=150 verified=true
+testnet settlements verified=3/3 program=937554f71c96d8ace11298d2d3342e0b4ffa7d61fb394c1706a78c088f4ea471
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 170.49s
+

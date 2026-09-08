@@ -1,0 +1,41 @@
+{
+  "schema_version": "logos-agent-lp0008-settlements-evidence-v1",
+  "generated_at": "2026-09-08T16:00:00Z",
+  "supersedes": "the 2026-08-22 run (blocks 18599-18601 died in the operator's 2026-09-08 chain reset)",
+  "rpc_url": "https://testnet.lez.logos.co",
+  "lez_version": "v0.2.4",
+  "proof_mode": "RISC0_DEV_MODE=0",
+  "test": "tests/three_testnet_settlements.rs",
+  "description": "The three LP-0008 category agents (storage, messaging, blockchain) each settle on the public testnet through their own skill dispatch: the agent deploys the deterministic sample claimer program once, each agent invokes program.call with a declared zero spend against a fresh public account, and the account's ownership flip to the program is read back from chain state. All six RPC snapshots below were fetched after the run as independent re-verification.",
+  "program_id": "937554f71c96d8ace11298d2d3342e0b4ffa7d61fb394c1706a78c088f4ea471",
+  "settlements": [
+    {
+      "category": "storage",
+      "tx_hash": "155731c68cce04f856ad501f568bfb618cc18793705230d7ffcff548f74416cf",
+      "block_id": 148,
+      "claimed_account": "Eh3VZWvqR7ykNhbGUCpJASVFMZKK1uSP6Coooon691LB",
+      "tx_snapshot": "rpc/tx-storage.json",
+      "account_snapshot": "rpc/acct-storage.json"
+    },
+    {
+      "category": "messaging",
+      "tx_hash": "adf2ae7455e40315f2b5e31f1dc1b66b2c137f5bd88df483189202a704f94d9c",
+      "block_id": 149,
+      "claimed_account": "DobLogYLioMgMuUsS3Q62HQUotLXYmALPRXzLwZi3YK5",
+      "tx_snapshot": "rpc/tx-messaging.json",
+      "account_snapshot": "rpc/acct-messaging.json"
+    },
+    {
+      "category": "blockchain",
+      "tx_hash": "f589abe4dac0fc0ba40e00614a43ae67b2045cfc24e00884c1574de0be15bd54",
+      "block_id": 150,
+      "claimed_account": "5xuG2G3NRqXTGoUiGyxjBo3FMy1W9UWA6Ux2qfTCrp4A",
+      "tx_snapshot": "rpc/tx-blockchain.json",
+      "account_snapshot": "rpc/acct-blockchain.json"
+    }
+  ],
+  "verification": "getTransaction returns full data for each hash; getAccount returns program_owner = [4149507475, 2899875356, 3533181665, 187577555, 1635646031, 390871547, 143435526, 1906593423] (the deployed program id as eight little-endian u32 words) and nonce 1 for each claimed account",
+  "run_duration_seconds": 170.5,
+  "run_log": "run.log",
+  "reproduce": "RISC0_DEV_MODE=0 AGENT_TESTNET_URL=https://testnet.lez.logos.co cargo test --test three_testnet_settlements -- --ignored --nocapture --test-threads=1"
+}

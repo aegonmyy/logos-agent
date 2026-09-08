@@ -79,6 +79,7 @@ jobs:
         run: |
           cargo test --lib
           cargo test --test full_skill_catalogue
+          cargo test --test third_party_skill
           cargo test --test storage_messaging_skills
 
   e2e:
@@ -137,6 +138,9 @@ jobs:
 
       - name: "E2E: A2A marketplace (discovery, task lifecycle, LEZ payment, refund on cancel)"
         run: cargo test --test a2a_two_agents -- --nocapture --test-threads=1
+
+      - name: "E2E: skill dispatch (registry paths, required-param enforcement)"
+        run: cargo test --test skills_dispatch -- --nocapture --test-threads=1
 
       - name: "E2E: three LP-0008 use cases (vault, notary, paid task)"
         run: cargo test --test three_use_cases_local -- --nocapture --test-threads=1

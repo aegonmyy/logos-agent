@@ -303,3 +303,120 @@ async fn period_limit_holds_approves_and_denies() -> Result<()> {
 
     Ok(())
 }
+
+/// LP-0008 reliability: a held (over-limit) spend survives an agent restart.
+/// The first runtime holds the spend and persists it to the state file, then
+/// the process dies (runtime dropped, no polling, no approval seen) — the
+/// transient failure a node blip or crash mid-wait produces. A second runtime
+/// rebuilt the way `bin/agent.rs` relaunches (identity reloaded from the same
+/// state file, pending state restored) picks the request back up, and the
+/// owner's approval — sent while the agent was down, waiting on the topic —
+/// then executes it on chain. Nothing moves before the restart; the request
+/// is neither dropped nor re-asked.
+#[tokio::test]
+async fn held_spend_survives_restart_and_executes_after_approval() -> Result<()> {
+    let mut ctx = TestContext::new().await?;
+    let definition = new_account(&mut ctx, false).await?;
+    let agent = Agent::create(
+        ctx.wallet_mut(),
+        SpendingPolicy {
+            per_tx_limit: 30,
+            per_period_limit: 0,
+            period_seconds: 86_400,
+        },
+    )
+    .await?;
+    let recipient = new_account(&mut ctx, true).await?;
+
+    // Fund the agent with 100 tokens.
+    wallet::cli::execute_subcommand(
+        ctx.wallet_mut(),
+        Command::Token(TokenProgramAgnosticSubcommand::New {
+            definition_account_id: public_mention(definition),
+            supply_account_id: private_mention(agent.account_id()),
+            name: "RESTART-COIN".to_owned(),
+            total_supply: 100,
+        }),
+    )
+    .await?;
+    wait_for_block().await;
+
+    let messaging = Arc::new(InMemoryMessaging::new());
+    let agent_id = agent.account_id();
+    let owner = "owner-identity";
+    let state_path = std::env::temp_dir().join(format!(
+        "owner-restart-{}-{}",
+        std::process::id(),
+        line!()
+    ));
+    let _ = std::fs::remove_file(&state_path);
+
+    // First "process": the over-limit spend is held and persisted, then the
+    // process dies before the owner decides.
+    let id_a = {
+        let channel = OwnerChannel::open(Arc::clone(&messaging) as Arc<_>, &agent_id, owner);
+        let mut runtime = AgentRuntime::with_state(agent, channel, state_path.clone())?;
+        let SpendDecision::Pending { id } = runtime
+            .propose_send(ctx.wallet_mut(), recipient, 50)
+            .await?
+        else {
+            bail!("expected the 50-token spend to be held for approval");
+        };
+        id
+    }; // runtime dropped here: the agent process is gone
+
+    ctx.wallet_mut().sync_to_latest_block().await?;
+    // Nothing moved while the agent was alive-but-waiting.
+    let still_funded = AgentRuntime::load_account_id(&state_path)
+        .map(|restored| {
+            Agent::from_parts(
+                restored,
+                SpendingPolicy {
+                    per_tx_limit: 30,
+                    per_period_limit: 0,
+                    period_seconds: 86_400,
+                },
+            )
+        })
+        .unwrap();
+    assert_eq!(still_funded.account_id(), agent_id);
+    assert_eq!(
+        still_funded.balance(ctx.wallet(), definition),
+        100,
+        "no funds move while the spend is held across the restart"
+    );
+
+    // The owner approves while the agent is down; the decision waits on the
+    // owner-to-agent topic.
+    let owner_view = OwnerChannel::open(Arc::clone(&messaging) as Arc<_>, &agent_id, owner);
+    owner_view.decide(&id_a, true).await?;
+
+    // Second "process": relaunch from the state file (the bin/agent.rs path).
+    let channel2 = OwnerChannel::open(Arc::clone(&messaging) as Arc<_>, &agent_id, owner);
+    let mut runtime2 = AgentRuntime::with_state(still_funded, channel2, state_path.clone())?;
+    assert_eq!(
+        runtime2.pending_ids(),
+        vec![id_a.clone()],
+        "the held spend should be restored from the state file"
+    );
+
+    let resolved = runtime2.process_owner_messages(ctx.wallet_mut()).await?;
+    assert_eq!(
+        resolved,
+        vec![Resolved::Executed {
+            id: id_a,
+            amount: 50
+        }],
+        "the approval sent while the agent was down should execute after relaunch"
+    );
+    wait_for_block().await;
+    ctx.wallet_mut().sync_to_latest_block().await?;
+    assert_eq!(
+        runtime2.agent().balance(ctx.wallet(), definition),
+        50,
+        "the restored-and-approved spend should move funds"
+    );
+
+    let _ = std::fs::remove_file(&state_path);
+    Ok(())
+}

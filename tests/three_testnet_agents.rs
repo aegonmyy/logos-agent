@@ -26,6 +26,11 @@ use wallet::config::{SequencerConnectionData, WalletConfigOverrides};
 /// Bounded poll attempts for a public-testnet mint to include (3s apart).
 const MINT_POLL_ATTEMPTS: usize = 40;
 
+/// One mint attempt gets 25 minutes: real proving of a PrivacyPreserving mint
+/// takes 10-15 minutes, and the bound exists to kill dead-connection hangs,
+/// not to rush proving.
+const MINT_ATTEMPT_TIMEOUT_SECS: u64 = 1500;
+
 fn testnet_url() -> String {
     env::var("AGENT_TESTNET_URL").unwrap_or_else(|_| "https://testnet.lez.logos.co".to_owned())
 }
@@ -117,16 +122,37 @@ async fn three_category_agents_on_public_testnet() -> Result<()> {
     // which is reported rather than failing.
     for (category, agent_account) in accounts {
         let token = new_public_account(&mut wallet).await?;
-        let mint = wallet::cli::execute_subcommand(
-            &mut wallet,
-            Command::Token(TokenProgramAgnosticSubcommand::New {
-                definition_account_id: public_mention(token),
-                supply_account_id: private_mention(agent_account),
-                name: format!("LP0008-AGENT-{category}"),
-                total_supply: 100,
-            }),
-        )
-        .await;
+        // A PrivacyPreserving mint at RISC0_DEV_MODE=0 takes minutes of
+        // proving, and a half-closed connection to the sequencer can park the
+        // wallet's HTTP read forever (observed 2026-09-08: request bytes stuck
+        // in the socket's send queue, no client read timeout, no error). Bound
+        // each attempt well past proving time and retry: a fresh connection
+        // has always been answered.
+        let mut mint: Result<SubcommandReturnValue> =
+            Err(anyhow::anyhow!("mint not attempted"));
+        for attempt in 1..=3 {
+            mint = tokio::time::timeout(
+                Duration::from_secs(MINT_ATTEMPT_TIMEOUT_SECS),
+                wallet::cli::execute_subcommand(
+                    &mut wallet,
+                    Command::Token(TokenProgramAgnosticSubcommand::New {
+                        definition_account_id: public_mention(token),
+                        supply_account_id: private_mention(agent_account),
+                        name: format!("LP0008-AGENT-{category}"),
+                        total_supply: 100,
+                    }),
+                ),
+            )
+            .await
+            .map_err(|_| anyhow::anyhow!("mint attempt timed out (dead connection or slow proving)"))
+            .and_then(|outcome| outcome);
+            if mint.is_ok() {
+                break;
+            }
+            eprintln!(
+                "testnet mint for {category} attempt {attempt} failed: {mint:?}; retrying on a fresh connection"
+            );
+        }
         match mint {
             Ok(SubcommandReturnValue::TransactionExecuted { tx_hash }) => {
                 let tx_hash = tx_hash.to_string();

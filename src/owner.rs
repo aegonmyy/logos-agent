@@ -588,6 +588,82 @@ mod tests {
         assert_eq!(runtime.pending_ids().len(), 0, "no spend should be held");
     }
 
+    /// A messaging backend whose first publish fails and whose later ones
+    /// succeed — a messaging node that blipped exactly once. Pins the
+    /// reliability contract: the agent retries the notification and the
+    /// over-limit spend is held for the owner anyway.
+    struct FlakyMessaging {
+        inner: InMemoryMessaging,
+        failures_left: std::sync::Mutex<u32>,
+    }
+
+    #[async_trait::async_trait]
+    impl Messaging for FlakyMessaging {
+        async fn send(
+            &self,
+            recipient: &str,
+            message: &[u8],
+        ) -> Result<crate::messaging::MessageId> {
+            {
+                let mut left = self.failures_left.lock().expect("flaky lock");
+                if *left > 0 {
+                    *left -= 1;
+                    anyhow::bail!("transient publish failure");
+                }
+            }
+            self.inner.send(recipient, message).await
+        }
+        async fn join(&self, group_id: &str) -> Result<()> {
+            self.inner.join(group_id).await
+        }
+        async fn create_group(&self, members: &[String]) -> Result<Topic> {
+            self.inner.create_group(members).await
+        }
+        async fn poll(&self, topic: &str) -> Result<Vec<Vec<u8>>> {
+            self.inner.poll(topic).await
+        }
+    }
+
+    #[tokio::test]
+    async fn transient_owner_outage_is_retried_and_the_spend_holds() {
+        let agent = test_agent();
+        let messaging = Arc::new(FlakyMessaging {
+            inner: InMemoryMessaging::new(),
+            failures_left: std::sync::Mutex::new(1),
+        });
+        let channel = OwnerChannel::open(
+            Arc::clone(&messaging) as Arc<_>,
+            &agent.account_id(),
+            "owner",
+        );
+        let mut runtime = AgentRuntime::new(agent, channel);
+
+        // The over-limit spend is held despite the first publish failing:
+        // the notification is retried before anything gives up.
+        let decision = runtime
+            .propose_send_no_wallet(
+                "Ds8q5PjLcKwwV97Zi7duhRVF9uwA2PuYMoLL7FwCzsXE"
+                    .parse()
+                    .unwrap(),
+                50,
+            )
+            .await
+            .expect("one transient publish failure must not lose the request");
+        assert!(matches!(decision, SpendDecision::Pending { .. }));
+        assert_eq!(runtime.pending_ids().len(), 1);
+
+        // And the request really is on the owner topic after the retry — the
+        // owner sees exactly one approval request, not zero, not two.
+        let owner_view = OwnerChannel::open(
+            Arc::clone(&messaging) as Arc<_>,
+            &runtime.agent().account_id(),
+            "owner",
+        );
+        let requests = owner_view.poll_agent_requests().await.expect("poll owner view");
+        assert_eq!(requests.len(), 1);
+        assert_eq!(requests[0]["amount"], "50");
+    }
+
     /// A spend that is *under* the per-transaction limit but over the aggregate
     /// per-period limit is held for the owner — the period limit gates the
     /// runtime path too, not just the skill path.

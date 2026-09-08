@@ -1,0 +1,72 @@
+{
+  "schema_version": "logos-agent-lp0008-shielded-evidence-v1",
+  "generated_at": "2026-09-08T19:55:00Z",
+  "supersedes": "v0.1.0 (its hashes died in the operator's 2026-09-08 chain reset)",
+  "rpc_url": "https://testnet.lez.logos.co",
+  "lez_version": "v0.2.4",
+  "proof_mode": "RISC0_DEV_MODE=0",
+  "run_source_commit": "main (post-reset working tree; test committed alongside this manifest)",
+  "test": "tests/testnet_agent_spend.rs",
+  "description": "The agent-driven shielded spending flow on the public LEZ testnet at RISC0_DEV_MODE=0: the agent's own shielded account receives 100 tokens (proof-bearing mint), spends 10 autonomously within its per-tx limit (proof-bearing send, balance 100 -> 90), and holds a 75-token over-limit request for the owner without submitting anything. Every transaction below is PrivacyPreserving (type byte 0x01) and carries a real Groth16 proof in its witness set.",
+  "accounts": {
+    "definition_public": "2fZi7k8cWTWEyKbZ9yhe6iSCE9excNQvg1W1DaY44KEz",
+    "agent_private": "FxccS3PJDSpKsD5iTWYeiUWuZs4KqBfi7NPSL6Hnuht1",
+    "recipient_private": "B8dyBNFa8WtiYcRkvGB67N4CcJDUttcggWtAgUBiLNmG"
+  },
+  "token": {
+    "name": "AGENT-TESTNET",
+    "total_supply": 100
+  },
+  "transactions": [
+    {
+      "name": "mint-01",
+      "kind": "PrivacyPreserving",
+      "type_byte": "0x01",
+      "tx_hash": "a178944818bc67ee776bcc9ca4e8bf5a798b4d1cf1aab8ce5a84650c079799c6",
+      "block_id": 87,
+      "on_chain_size_bytes": 270810,
+      "carries_zk_proof": true,
+      "rpc_snapshot": "rpc/mint-01.json",
+      "effect": "100 tokens minted into the agent's own shielded account"
+    },
+    {
+      "name": "spend-01",
+      "kind": "PrivacyPreserving",
+      "type_byte": "0x01",
+      "tx_hash": "a3eaeb3a773f35a48935944ca1b15bed683265dbded90633c094e4ef56aa4f4b",
+      "block_id": 88,
+      "on_chain_size_bytes": 272778,
+      "carries_zk_proof": true,
+      "rpc_snapshot": "rpc/spend-01.json"
+    },
+    {
+      "name": "spend-02",
+      "kind": "PrivacyPreserving",
+      "type_byte": "0x01",
+      "tx_hash": "2a283d3c8887ef552bf56f415bbd6b534a4424e0765b590f3b44f6f6215a0aaa",
+      "block_id": 111,
+      "on_chain_size_bytes": 273066,
+      "carries_zk_proof": true,
+      "rpc_snapshot": "rpc/spend-02.json"
+    },
+    {
+      "name": "spend-03",
+      "kind": "PrivacyPreserving",
+      "type_byte": "0x01",
+      "tx_hash": "eab567f88e164945769c342d35540c7e7ae610c267c4247d877868ae51af8b93",
+      "block_id": 118,
+      "on_chain_size_bytes": 270480,
+      "carries_zk_proof": true,
+      "rpc_snapshot": "rpc/spend-03.json",
+      "effect": "net effect of the spend phase asserted by the test: agent balance 100 -> 90, with 10 tokens at the private recipient"
+    }
+  ],
+  "balance_progression": {
+    "after_mint": "agent = 100 (read at block 87)",
+    "after_autonomous_send": "agent = 90 (read at block 118); 10 tokens to the private recipient",
+    "over_limit_request": "75 tokens vs per-tx limit 50 -> NeedsOwnerApproval returned, balance unchanged, no transaction submitted"
+  },
+  "run_duration_seconds": 3320,
+  "reproduce": "RISC0_DEV_MODE=0 cargo test --test testnet_agent_spend -- --ignored --nocapture --test-threads=1",
+  "note_on_ephemerality": "The v0.1.0 hashes died in the operator's 2026-09-08 chain reset; this run regenerated equivalent evidence against the fresh chain (the reproducible test does this against whatever testnet is live). The on-chain size and type byte are the invariant: a PrivacyPreserving transaction at DEV_MODE=0 is hundreds of kilobytes and carries the proof."
+}
