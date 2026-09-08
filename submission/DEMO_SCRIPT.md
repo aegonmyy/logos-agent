@@ -184,7 +184,9 @@ referenced in the Close, not shown as footage.
 > reason to build this on Logos instead of anywhere else.
 >
 > What you just watched runs against a local sequencer. The same agent also
-> runs on the official public LEZ testnet, where each of the three category
-> agents lands its own included, verified on-chain transaction through a
-> program they deployed. The hashes, blocks, and explorer links for that are
-> in the repo, in `docs/THREE_TESTNET_SETTLEMENTS.md`. Thanks for watching.
+> runs on the official public LEZ testnet, where a shielded
+> privacy-preserving token send lands on chain at dev-mode zero as a
+> 271-kilobyte transaction that carries the real Groth16 proof in its body.
+> That is the proof-bearing on-chain transaction, not a few-hundred-byte
+> public transaction. The hash, block, and the RPC snapshot are in the repo,
+> in `docs/SHIELDED_TESTNET_PROOF.md`. Thanks for watching.
