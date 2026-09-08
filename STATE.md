@@ -8,31 +8,32 @@ LP-0008 submission repo (private until the end-game flip). PR #142 on
 logos-co/lambda-prize is the vehicle, currently a **draft**; flipping it ready
 is the submission act. Deadline: end of Friday 2026-09-18. Criteria walkthrough
 complete: 22/23 MET, sole gap = narrated video covering 3 illustrative use
-cases (close in progress, see below). Last commit on main: 8103f87 (not yet
-pushed; pushing fires CI on this same box, so it waits for the proving queue
-to drain).
+cases (close in progress, see below). Last commits on main: e3bf57a (weboko
+audit doc fixes), dcb4a0d (video 2 cast + script), bd24c09 (narratable cut);
+PR #142 body already patched with the live v0.2.0 evidence set (pin e3bf57a,
+blocks 87-118 + 148-150, GUI video no longer claimed narrated).
+
+Weboko audit (#51) closed: every published hash walked via RPC, 8 live
+headline hashes verified minutes before publishing, v0.1.0 dir carries a
+SUPERSEDED marker, dead surfaces scheduled for rewrite in #49.
 
 ## What is running (evening 2026-09-08, all automatic, logs under /tmp)
 
-#47 identity re-land PASSED 19:10 (2h20m). Evidence in the memory ledger:
-messaging mint tx 328d26a7... block 317, blockchain mint tx 5fc57a20...
-block 338; storage mint submitted_pending (verify on-chain later).
-
-Master-chain v1 then hit a silent no-op bug: its three_use_cases stages used
-a double `--` (`-- three_lp0008_use_cases -- --ignored`), which turns
---ignored into a filter string, so stage_48/lane_A/lane_B all "passed" in
-0.00s doing nothing. Caught because 0.00s plus "1 ignored" is not a pass.
-Rebuilt as /home/ubuntu/master-chain-v2.sh (pid 477945, appends to
-/tmp/master-chain.log) with corrected argv and the RECORDING FIRST. Stages:
-
-1. R: warm build, then asciinema capture of `demo.sh three_use_cases_local`
-   at DEV_MODE=0 in a 120x32 tmux session ->
-   recordings/vault-notary-real-proof.cast (video-1 style: zoomed out, no
-   overlays). RECORDING_DONE when the tmux session ends.
-2. #48 memory-anchored use cases (SERVICE_BACKEND=memory).
-3. Lane A: real Codex + real Waku + public anchors (RUN_PUBLIC_USE_CASES=1).
-4. Lane B: paid task with public payment (RUN_PAID_A2A=1).
-5. F10 full-strength identities with services on.
+1. R recording DONE 20:12 (58 min, 1 passed in 3473.40s at DEV_MODE=0) ->
+   recordings/vault-notary-real-proof.cast. Retimed to a 4:26 narratable cut
+   (recordings/vault-notary-narratable.cast, beats pinned so each paragraph
+   lands on its on-screen moment; retime_vault_notary.py). Narration script
+   with sync windows: recordings/vault-notary-narration.md. User records the
+   voiceover TONIGHT against the narratable mp4 (render pending, see below).
+2. #48 F9 anchors DONE 20:16 (1 passed, 181.71s): vault block 402, notary 403,
+   alerter 404, all verified LIVE.
+3. Lane A DONE 20:19 (1 passed, 171.01s): real Codex + Waku anchors verified
+   LIVE: vault 405 (cid zDvZRwzm2qMNXP9...), notary 406 (sha256 5999d285...,
+   same doc hash as #48), alerter 407.
+4. Lane B RUNNING since 20:19: payer funded (8K5JHkmr..., balance 100),
+   payment tx e4f759ed8e9b5e338f585ba6ff8d7221f9b6fcd78e967db0cf93cce7f680
+   89f1 submitted, proving.
+5. F10 full-strength identities queued after lane B.
 6. MASTER_CHAIN_DONE -> night-autopush pushes main, CI runs overnight.
 
 Watchdog (night-watchdog.sh, armed on pid 477945): kills a stage's cargo
@@ -41,24 +42,29 @@ minutes; stands down at MASTER_CHAIN_DONE. Autopush (night-autopush.sh)
 waits for MASTER_CHAIN_DONE, never prints the token, runs once (marker
 file).
 
+Video-2 render tooling: asciinema's agg is NOT in nixpkgs (that agg is the
+graphics lib; the flake build wants rustc-from-source, too heavy mid-prove);
+installing via `cargo install --git https://github.com/asciinema/agg`, then
+`agg <narratable.cast> <mp4>` at 120x32.
+
 Casualty log: a stray parallel `three_use_cases` launch (pre-serialize
 experiment) was OOM-SIGKILLed when load hit 39; it had already landed a
 public Vault anchor (block 199, tx e5fc9eac12ebbc14c61cf524ebc018916a5fd18
 409a72d7624e13af39f346b1e) which stays valid on-chain. The serialized #48
-stage will land the full anchor set fresh.
+stage landed the full anchor set fresh (402-404), superseding it.
 
 Monitor bi333kn2l tails both logs for stage markers and failures.
 
-## After the queue drains (tomorrow)
+## After the queue drains (tonight/tomorrow)
 
-- Push main (commits through 8103f87), watch CI go green on it.
-- Video 2: retime the cast (recordings/retime_cast.py pattern), write the
-  narration script against the actual chapters, **user records the voiceover
-  themselves** (~3-4 min reading), mux, upload, link in PR. Videos already on
-  YT are the only video source (demo release assets deleted 2026-09-08;
-  both YT videos are the user's own voice).
+- Watch lane B -> F10-full -> autopush; verify CI green on the pushed commit.
+- Video 2: render the narratable cast to mp4, user reads
+  recordings/vault-notary-narration.md in sync TONIGHT, mux audio, upload,
+  link in PR. Videos already on YT are the only video source (demo release
+  assets deleted 2026-09-08).
 - #49 doc rewrites with fresh hashes: TESTNET_EVIDENCE.md, THREE_USE_CASES.md,
-  THREE_TESTNET_AGENTS.md, SOLUTION.md F9/F10 lines, README dead-hash check.
+  THREE_TESTNET_AGENTS.md (cite F10-full mints once landed), SOLUTION.md F9/F10
+  lines, README dead-hash check.
 - End-game: re-cut Basecamp bundles on the final commit + tag a release;
   dispatch real-proof.yml on the final commit; pin green run + hashes in
   PR #142; rebuild solutions/LP-0008.md on the fork; flip the PR ready.
