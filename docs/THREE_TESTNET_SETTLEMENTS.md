@@ -42,6 +42,22 @@ above.
 
 ## Settlements — one per category agent, all included and verified
 
+**Program deployment** (precedes the settlements): the agent deployed the
+claimer program in block **144**, transaction
+`810ac460c5bb2b46a3868fb699635be5059496478db48c98809c107a04ee3d67`, a
+`ProgramDeployment` whose body decodes to **343,397 bytes** total, carrying
+the **343,392 bytes** of bytecode (the platform's own run log records the
+bytecode field size; committed at
+[`testnet-evidence/settlements-v0.2.0/run.log`](testnet-evidence/settlements-v0.2.0/run.log),
+the `ProgramDeployment(ProgramDeploymentTransaction ...)` line). Verify:
+
+```bash
+curl -s -X POST https://testnet.lez.logos.co -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"getTransaction","params":["810ac460c5bb2b46a3868fb699635be5059496478db48c98809c107a04ee3d67"]}' \
+  | jq -r '.result[0]' | base64 -d | wc -c
+# -> 343397  (whole transaction body; the bytecode field inside it is 343392)
+```
+
 Each settlement is a `program.call` submitted by the agent's skill dispatch
 against a fresh public account; the claimer program takes ownership of the
 account, and the state change is verified by `getAccount` after inclusion. The

@@ -323,6 +323,14 @@ the sequencer drops token transfers — is in
 [`docs/THREE_TESTNET_AGENTS.md`](docs/THREE_TESTNET_AGENTS.md), and
 [`docs/THREE_TESTNET_SETTLEMENTS.md`](docs/THREE_TESTNET_SETTLEMENTS.md).
 
+The agent's own shielded spending flow with real Groth16 proofs
+(`PrivacyPreserving` transactions, RPC-verifiable byte sizes) is evidenced in
+[`docs/SHIELDED_TESTNET_PROOF.md`](docs/SHIELDED_TESTNET_PROOF.md); a
+recorded `RISC0_DEV_MODE=0` demo run is in
+[`docs/DEV_MODE_0_EVIDENCE.md`](docs/DEV_MODE_0_EVIDENCE.md); which tests
+need external nodes and how to point them at real ones is in
+[`docs/REAL_NODES.md`](docs/REAL_NODES.md).
+
 ## License
 
 Dual-licensed under MIT or Apache-2.0.

@@ -5,10 +5,15 @@ instruction. Cycles are a property of execution and are independent of
 `RISC0_DEV_MODE` (the executor runs whether or not a Groth16 proof is produced),
 so these figures hold for the real-proof path.
 
-Measured with the platform's `cycle_bench` tool:
+Measured with the platform's `cycle_bench` tool (this is a workspace member
+of the platform repo, **not** a package in this repository — run it from a
+checkout of the platform, pinned to the same release the figures were
+measured against):
 
 ```bash
-cargo run --release -p cycle_bench -- --exec-iters 3
+git clone https://github.com/logos-blockchain/logos-execution-zone
+cd logos-execution-zone && git checkout v0.2.4
+cargo run --release -p cycle_bench -- --exec-iters 3   # tools/cycle_bench
 ```
 
 The figures are measured against a standalone stack running the same platform
@@ -54,10 +59,14 @@ transaction carries the program bytecode for the state machine to register,
 and no instruction executes, so there are no executor user-cycles to count.
 Its on-chain cost is transaction and block **size**, not CU — observed
 directly on the public testnet, where the claimer deployment was a
-`ProgramDeployment` transaction carrying 343,392 bytes of bytecode. Block-size
-limits (what the platform's `block_size_limit` tests exercise with this same
-fixture) are the operative constraint for deployments, not the 32M compute
-budget.
+`ProgramDeployment` transaction carrying 343,392 bytes of bytecode (verify:
+[`THREE_TESTNET_SETTLEMENTS.md`](THREE_TESTNET_SETTLEMENTS.md) quotes the
+deployment hash `810ac460…ee3d67`, block 144, with the decode-and-count
+command — the decoded body is 343,397 bytes, the bytecode field inside it is
+343,392, and the platform's committed run log records the same figure).
+Block-size limits (what the platform's `block_size_limit` tests exercise with
+this same fixture) are the operative constraint for deployments, not the 32M
+compute budget.
 
 ## Budget context
 

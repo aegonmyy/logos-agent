@@ -36,7 +36,7 @@ What the run asserted, in order:
 | Kind | **PrivacyPreserving** | **PrivacyPreserving** | **PrivacyPreserving** | **PrivacyPreserving** |
 | Type byte | `0x01` | `0x01` | `0x01` | `0x01` |
 | On-chain size | 270,810 B | 272,778 B | 273,066 B | 270,480 B |
-| Tx hash | `a1789448…799c6` | `a3eaeb3a…4f4b` | `2a283d3c…0aaa` | `eab567f8…8b93` |
+| Tx hash | `a178944818bc67ee776bcc9ca4e8bf5a798b4d1cf1aab8ce5a84650c079799c6` | `a3eaeb3a773f35a48935944ca1b15bed683265dbded90633c094e4ef56aa4f4b` | `2a283d3c8887ef552bf56f415bbd6b534a4424e0765b590f3b44f6f6215a0aaa` | `eab567f88e164945769c342d35540c7e7ae610c267c4247d877868ae51af8b93` |
 | Block | 87 | 88 | 111 | 118 |
 | Carries ZK proof | Yes | Yes | Yes | Yes |
 
@@ -49,11 +49,31 @@ curl -s -X POST https://testnet.lez.logos.co -H 'Content-Type: application/json'
   -d '{"jsonrpc":"2.0","id":1,"method":"getTransaction","params":["a3eaeb3a773f35a48935944ca1b15bed683265dbded90633c094e4ef56aa4f4b"]}'
 ```
 
+To check the on-chain size of any of the four, base64-decode the returned
+body and count the bytes — this is the exact derivation of the table's size
+row (substitute the other three hashes from the table above):
+
+```bash
+curl -s -X POST https://testnet.lez.logos.co -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"getTransaction","params":["a3eaeb3a773f35a48935944ca1b15bed683265dbded90633c094e4ef56aa4f4b"]}' \
+  | jq -r '.result[0]' | base64 -d | wc -c
+# -> 272778  (spend-01; mint-01 -> 270810, spend-02 -> 273066, spend-03 -> 270480)
+```
+
 The committed RPC snapshots for all four transactions are in
 [`testnet-evidence/v0.2.0/rpc/`](testnet-evidence/v0.2.0) with the manifest at
 [`testnet-evidence/v0.2.0/manifest.json`](testnet-evidence/v0.2.0/manifest.json).
 
 ### Accounts
+
+Note on verifying balances: these are shielded accounts, so a plain
+`getAccount` returns the **public** state view and reads `balance: 0` for
+both private accounts — that is by design, not a contradiction. The holdings
+live in shielded notes; the proof of the 100-token mint and the 10-token
+spend is the `PrivacyPreserving` transactions themselves (mint-01 carries the
+100 tokens into the agent's account, spend-01 moves 10 to the recipient).
+The `100 -> 90` balance figures above are the agent wallet's own synced
+note balances, reproduced by running the test below.
 
 - Definition (public): `2fZi7k8cWTWEyKbZ9yhe6iSCE9excNQvg1W1DaY44KEz`
 - Agent (private): `FxccS3PJDSpKsD5iTWYeiUWuZs4KqBfi7NPSL6Hnuht1`
