@@ -52,6 +52,12 @@ struct Args {
     /// Where to persist pending-approval state so it survives a restart.
     #[arg(long, env = "AGENT_STATE_FILE", default_value = "agent-state.json")]
     state_file: std::path::PathBuf,
+
+    /// Reuse this shielded account instead of minting a new one. Without the
+    /// flag, the account persisted in the state file is reused; a fresh state
+    /// file mints a new account and persists its id for the next start.
+    #[arg(long, env = "AGENT_ACCOUNT_ID")]
+    account: Option<String>,
 }
 
 #[tokio::main]
@@ -63,17 +69,30 @@ async fn main() -> Result<()> {
         .await
         .context("initialising wallet from environment")?;
 
-    // Give the agent its shielded identity and spending policy.
-    let agent = Agent::create(
-        &mut wallet,
-        SpendingPolicy {
-            per_tx_limit: args.spending_limit,
-            per_period_limit: args.period_limit,
-            period_seconds: args.period_seconds,
-        },
-    )
-    .await
-    .context("creating the agent account")?;
+    // Give the agent its shielded identity and spending policy. The identity
+    // is durable: an explicit --account wins, else the id persisted in the
+    // state file (so a restart is the same agent, on the same owner-channel
+    // topics, with its pending approvals), else a fresh account is minted and
+    // its id persisted for the next start.
+    let policy = SpendingPolicy {
+        per_tx_limit: args.spending_limit,
+        per_period_limit: args.period_limit,
+        period_seconds: args.period_seconds,
+    };
+    let agent = if let Some(id) = &args.account {
+        let account_id = id.parse().context("parsing --account as an account id")?;
+        Agent::from_parts(account_id, policy)
+    } else if let Some(account_id) = logos_agent::owner::AgentRuntime::load_account_id(&args.state_file) {
+        eprintln!(
+            "restoring agent identity from {}: {account_id}",
+            args.state_file.display()
+        );
+        Agent::from_parts(account_id, policy)
+    } else {
+        Agent::create(&mut wallet, policy)
+            .await
+            .context("creating the agent account")?
+    };
     let account_id = agent.account_id();
     println!("agent account: {account_id}");
 
@@ -100,8 +119,15 @@ async fn main() -> Result<()> {
     );
     loop {
         wallet.sync_to_latest_block().await.ok();
-        for resolved in runtime.process_owner_messages(&mut wallet).await? {
-            println!("resolved: {resolved:?}");
+        // A transient failure (sequencer flap, nwaku restart) must not take the
+        // deployed agent down: report it and retry on the next poll.
+        match runtime.process_owner_messages(&mut wallet).await {
+            Ok(resolved) => {
+                for r in resolved {
+                    println!("resolved: {r:?}");
+                }
+            }
+            Err(e) => eprintln!("transient owner-channel error (retrying next poll): {e:#}"),
         }
         tokio::time::sleep(Duration::from_secs(args.poll_secs)).await;
     }

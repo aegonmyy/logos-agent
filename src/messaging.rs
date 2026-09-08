@@ -179,6 +179,19 @@ impl Messaging for WakuMessaging {
 
     async fn poll(&self, topic: &str) -> Result<Vec<Vec<u8>>> {
         let encoded: String = url_encode(topic);
+        // nwaku's REST relay only buffers a content topic once this node has
+        // subscribed to it; reading an unsubscribed topic answers 404. A
+        // publish to a topic subscribes the node implicitly, which is why the
+        // send-first flows never saw this. Subscribe on demand, then read: the
+        // first poll of a fresh topic returns empty instead of an error.
+        self.http
+            .post(format!("{}/relay/v1/auto/subscriptions", self.base))
+            .json(&[topic])
+            .send()
+            .await
+            .context("POST /relay/v1/auto/subscriptions")?
+            .error_for_status()
+            .context("nwaku rejected subscription")?;
         let messages: Vec<WakuMessage> = self
             .http
             .get(format!("{}/relay/v1/auto/messages/{encoded}", self.base))

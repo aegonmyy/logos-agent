@@ -203,10 +203,13 @@ struct PendingSpend {
     amount: u128,
 }
 
-/// The durable part of a runtime: pending approvals and the next request id.
-/// Persisted so a restarted agent does not lose spends awaiting owner approval.
+/// The durable part of a runtime: the agent's account id, pending approvals,
+/// and the next request id. Persisted so a restarted agent reuses its identity
+/// and does not lose spends awaiting owner approval.
 #[derive(Debug, Default, Serialize, Deserialize)]
 struct PersistedState {
+    #[serde(default)]
+    account_id: Option<String>,
     pending: HashMap<String, PendingSpend>,
     next_id: u64,
 }
@@ -235,24 +238,44 @@ impl AgentRuntime {
     }
 
     /// Build a runtime whose pending state is persisted at `state_path`, loading
-    /// any previously-saved state so approvals survive a restart.
+    /// any previously-saved state so approvals survive a restart. The agent's
+    /// account id is (re)written immediately, so a restart of the binary can
+    /// reload the same identity from the state file.
     pub fn with_state(agent: Agent, channel: OwnerChannel, state_path: PathBuf) -> Result<Self> {
         let mut runtime = Self::new(agent, channel);
-        if state_path.exists() {
+        let existed = state_path.exists();
+        let mut had_other_account = false;
+        if existed {
             let bytes = std::fs::read(&state_path).context("reading agent state")?;
             let state: PersistedState =
                 serde_json::from_slice(&bytes).context("parsing agent state")?;
             runtime.pending = state.pending;
             runtime.next_id = state.next_id;
+            had_other_account =
+                state.account_id.is_some_and(|id| id != runtime.agent.account_id().to_string());
         }
         runtime.state_path = Some(state_path);
+        if had_other_account || !existed {
+            runtime.persist()?;
+        }
         Ok(runtime)
+    }
+
+    /// The agent identity persisted at `state_path`, if a state file exists —
+    /// what a restarted `agent` binary reloads instead of minting a new
+    /// shielded account.
+    #[must_use]
+    pub fn load_account_id(state_path: &std::path::Path) -> Option<lee::AccountId> {
+        let bytes = std::fs::read(state_path).ok()?;
+        let state: PersistedState = serde_json::from_slice(&bytes).ok()?;
+        state.account_id?.parse().ok()
     }
 
     /// Persist pending state if durability is enabled.
     fn persist(&self) -> Result<()> {
         if let Some(path) = &self.state_path {
             let state = PersistedState {
+                account_id: Some(self.agent.account_id().to_string()),
                 pending: self.pending.clone(),
                 next_id: self.next_id,
             };

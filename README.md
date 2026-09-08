@@ -39,6 +39,7 @@ transactions, and RISC0 proving are the platform's, not reimplemented here.
 | `owner.rs` | `OwnerChannel` + `AgentRuntime`: the approval workflow and configuration |
 | `a2a.rs` | `AgentCard`, task lifecycle, `A2aProvider` and `A2aClient` |
 | `bin/agent.rs` | Single-command headless deployment |
+| `bin/agent-wallet-init.rs` | One-step wallet home creation for fresh machines |
 
 ### Skill interface
 
@@ -143,26 +144,36 @@ over a channel you trust (the owner channel) and later cards under the same
 ### 1. Deploy an agent (headless, one command)
 
 The wallet and sequencer connection come from the standard LEE wallet
-environment. A single command gives the agent a shielded identity, a spending
-limit, and an owner channel, then runs its event loop:
+environment. On a machine with no wallet yet, create one first (owners with an
+existing LEE wallet skip this):
 
 ```bash
 export LEE_WALLET_HOME_DIR=/path/to/wallet     # wallet + sequencer connection
+agent-wallet-init --sequencer https://testnet.lez.logos.co
+```
+
+A single command then gives the agent a shielded identity, a spending
+limit, and an owner channel, and runs its event loop:
+
+```bash
 agent --owner <owner-identity> \               # who approves over-limit spends
       --spending-limit 50 \                     # autonomous per-tx limit (tokens)
       --period-limit 500 \                      # aggregate spend per period (0 = off)
       --period-seconds 86400 \                  # period length (default: a day)
       --messaging-url http://127.0.0.1:8645 \   # nwaku REST (Logos Messaging)
-      --state-file agent-state.json             # pending approvals + period state persist here
+      --state-file agent-state.json             # identity + pending approvals persist here
 ```
 
 On start it prints the agent's shielded account id (fund it from any wallet) and
 then waits for owner instructions. All flags also read from env vars
 (`AGENT_OWNER`, `AGENT_SPENDING_LIMIT`, `AGENT_PERIOD_LIMIT`,
-`AGENT_PERIOD_SECONDS`, `AGENT_MESSAGING_URL`, `AGENT_STATE_FILE`). The
-`--state-file` is what makes pending approvals survive a restart: on relaunch the
-agent reloads any spends still awaiting the owner, and the per-period
-accumulator alongside it so restarts cannot reset the period allowance.
+`AGENT_PERIOD_SECONDS`, `AGENT_MESSAGING_URL`, `AGENT_STATE_FILE`,
+`AGENT_ACCOUNT_ID`). The `--state-file` is what makes a restart the same agent:
+on relaunch the agent restores its account id (or use `--account <id>` to pin
+one explicitly), reloads any spends still awaiting the owner, and the per-period
+accumulator alongside it so restarts cannot reset the period allowance. A
+recorded run of the whole sequence against the public testnet is in
+[`docs/HEADLESS_DEPLOY.md`](docs/HEADLESS_DEPLOY.md).
 
 ### 2. Owner interaction (CLI)
 
