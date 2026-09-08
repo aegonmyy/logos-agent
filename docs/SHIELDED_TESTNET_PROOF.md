@@ -23,8 +23,18 @@ proof. This is the proof-bearing on-chain evidence for the submission.
 | Block | 42680 | **42709** |
 | Effect | holder balance = 100 | holder 100 -> 90 (10 to private recipient) |
 
-Explorer:
-- Shielded send: <https://explorer.testnet.lez.logos.co/transaction/606bb9b50f0e15152281faf41d4c331f9eaa6997019a899db6d8d1683a722434>
+Verify on chain (the explorer does not index `PrivacyPreserving`
+transactions, so it returns "not found" for this hash; the raw RPC returns
+it):
+
+```bash
+curl -s -X POST https://testnet.lez.logos.co -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"getTransaction","params":["606bb9b50f0e15152281faf41d4c331f9eaa6997019a899db6d8d1683a722434"]}'
+```
+
+The committed RPC snapshot is at
+`docs/testnet-evidence/v0.1.0/rpc/shielded-send-01.json` (decodes to
+271,076 bytes, type byte `0x01`).
 
 The size difference is the proof. A `Public` transaction (type `0x00`) is a
 few hundred bytes: a message and signatures, no proof. A
