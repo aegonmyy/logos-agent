@@ -229,7 +229,7 @@ fn record_gui_demo_flow_inner(
     println!("pending: 50 tokens to recipient, over the 30 per-tx limit");
 
     // Wait for the QML UI to click Approve.
-    let resolved = wait_for_resolution(&rt, &mut runtime, ctx.wallet_mut(), 120)?;
+    let resolved = wait_for_resolution(&rt, &mut runtime, ctx.wallet_mut(), 600)?;
     println!("APPROVED: {:?}", resolved);
     // Wait for the on-chain transfer to settle.
     rt.block_on(ctx.wallet_mut().sync_to_latest_block())?;
@@ -245,7 +245,7 @@ fn record_gui_demo_flow_inner(
     println!("READY:deny");
     println!("pending: 50 tokens, over the 30 per-tx limit");
 
-    let resolved = wait_for_resolution(&rt, &mut runtime, ctx.wallet_mut(), 120)?;
+    let resolved = wait_for_resolution(&rt, &mut runtime, ctx.wallet_mut(), 600)?;
     println!("DENIED: {:?}", resolved);
     let bal = balance(ctx, &runtime);
     assert_eq!(bal, 50, "the denied spend must not move funds");
@@ -254,7 +254,7 @@ fn record_gui_demo_flow_inner(
     // (3) Wait for the QML UI to raise the per-tx limit to 45.
     println!("READY:reconfigure");
     println!("waiting for owner to set per-tx limit to 45...");
-    wait_for_reconfigure(&rt, &mut runtime, ctx.wallet_mut(), 120)?;
+    wait_for_reconfigure(&rt, &mut runtime, ctx.wallet_mut(), 600)?;
     println!("RECONFIGURED: per-tx limit is now 45");
     let per_tx = runtime.agent().policy_limit();
     let (per_period, period_secs) = runtime.agent().period_policy();

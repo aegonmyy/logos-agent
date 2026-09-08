@@ -108,6 +108,26 @@ impl OwnerChannel {
         self.read(&self.to_agent).await
     }
 
+    /// Agent notifies the owner that a spend executed (either the owner
+    /// approved it, or it was within policy and ran autonomously). The owner
+    /// app polls the to-owner topic, so this lands in the owner's next poll and
+    /// the UI can surface it. Without this, an autonomous under-limit spend
+    /// (stage 4 of the demo) is invisible to the owner app: no approval request
+    /// was ever posted, so the owner sees nothing change. Best-effort: a
+    /// publish failure must not abort a spend that already executed.
+    async fn notify_spent(&self, amount: u128, to: &AccountId) {
+        let _ = self
+            .post(
+                &self.to_owner,
+                &json!({
+                    "type": "spent",
+                    "amount": amount.to_string(),
+                    "to": to.to_string(),
+                }),
+            )
+            .await;
+    }
+
     // --- owner side (used by the Logos app / tests) ---
 
     /// Owner reads the agent's outgoing requests/notifications.
@@ -267,6 +287,7 @@ impl AgentRuntime {
         match self.agent.check_policy(amount) {
             crate::PolicyDecision::Allow => {
                 self.agent.send_approved(wallet, to, amount).await?;
+                self.channel.notify_spent(amount, &to).await;
                 Ok(SpendDecision::Executed { amount, to })
             }
             crate::PolicyDecision::OverPerTx { limit }
@@ -375,6 +396,9 @@ impl AgentRuntime {
                             self.agent
                                 .send_approved(wallet, spend.to, spend.amount)
                                 .await?;
+                            self.channel
+                                .notify_spent(spend.amount, &spend.to)
+                                .await;
                             resolved.push(Resolved::Executed {
                                 id,
                                 amount: spend.amount,

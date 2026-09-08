@@ -109,12 +109,53 @@ QString AgentOwnerPlugin::pollRequests()
         return QStringLiteral("{\"ok\":false,\"error\":\"owner channel not configured\"}");
     }
     const QString result = m_owner.pollRequests();
-    // Surface the requests array for the QML list even when the envelope
-    // reports an error, so the UI can show the error string.
+    // The to-owner topic carries two message kinds from the agent:
+    //   - "approval_request": a pending over-limit spend the owner must
+    //     Approve/Deny. Accumulated into requestsJson, deduped by id, removed
+    //     on decide() (see below).
+    //   - "spent": the agent executed a spend (owner-approved or autonomous
+    //     under-limit). Accumulated into spentJson so the UI can show the
+    //     agent's live activity, including stage 4's autonomous spend which
+    //     posts no approval request and would otherwise be invisible.
+    // Both accumulate across polls: nwaku evicts a message after its first
+    // read, so a later poll returns empty. Replacing on each poll would clear
+    // a still-pending request mid-flow.
     const QJsonDocument doc = QJsonDocument::fromJson(result.toUtf8());
     if (doc.isObject() && doc.object().value(QLatin1String("ok")).toBool()) {
-        const QJsonArray requests = doc.object().value(QLatin1String("requests")).toArray();
-        setRequestsJson(QString::fromUtf8(QJsonDocument(requests).toJson(QJsonDocument::Compact)));
+        const QJsonArray incoming = doc.object().value(QLatin1String("requests")).toArray();
+        QJsonArray mergedReq = QJsonDocument::fromJson(requestsJson().toUtf8()).array();
+        QJsonArray mergedSpent = QJsonDocument::fromJson(spentJson().toUtf8()).array();
+        for (const QJsonValue& v : incoming) {
+            const QJsonObject obj = v.toObject();
+            const QString type = obj.value(QLatin1String("type")).toString();
+            if (type == QLatin1String("spent")) {
+                // Dedupe spent notifications by (amount,to) pair: a re-delivered
+                // message on a cumulative backend should not double-count.
+                const QString amt = obj.value(QLatin1String("amount")).toString();
+                const QString to = obj.value(QLatin1String("to")).toString();
+                const bool known = std::any_of(mergedSpent.cbegin(), mergedSpent.cend(),
+                    [&amt, &to](const QJsonValue& m) {
+                        const QJsonObject mo = m.toObject();
+                        return mo.value(QLatin1String("amount")).toString() == amt
+                            && mo.value(QLatin1String("to")).toString() == to;
+                    });
+                if (!known) {
+                    mergedSpent.append(v);
+                }
+            } else {
+                // approval_request (or any other): treat as a pending request.
+                const QString id = obj.value(QLatin1String("id")).toString();
+                const bool known = std::any_of(mergedReq.cbegin(), mergedReq.cend(),
+                    [&id](const QJsonValue& m) {
+                        return m.toObject().value(QLatin1String("id")).toString() == id;
+                    });
+                if (!known) {
+                    mergedReq.append(v);
+                }
+            }
+        }
+        setRequestsJson(QString::fromUtf8(QJsonDocument(mergedReq).toJson(QJsonDocument::Compact)));
+        setSpentJson(QString::fromUtf8(QJsonDocument(mergedSpent).toJson(QJsonDocument::Compact)));
     }
     return result;
 }
@@ -124,7 +165,20 @@ QString AgentOwnerPlugin::decide(QString requestId, bool approve)
     if (!m_owner.isOpen()) {
         return QStringLiteral("{\"ok\":false,\"error\":\"owner channel not configured\"}");
     }
-    return m_owner.decide(requestId, approve);
+    const QString result = m_owner.decide(requestId, approve);
+    // Remove the decided request from the accumulated list so the Approve/Deny
+    // controls disappear immediately. (A re-poll would not return it: the
+    // Waku store evicted it on the first read, and the agent consumes the
+    // decision and drops the pending spend.)
+    QJsonArray kept = QJsonDocument::fromJson(requestsJson().toUtf8()).array();
+    QJsonArray next;
+    for (const QJsonValue& v : kept) {
+        if (v.toObject().value(QLatin1String("id")).toString() != requestId) {
+            next.append(v);
+        }
+    }
+    setRequestsJson(QString::fromUtf8(QJsonDocument(next).toJson(QJsonDocument::Compact)));
+    return result;
 }
 
 QString AgentOwnerPlugin::configureLimit(QString limit)

@@ -20,6 +20,10 @@ class AgentOwner
     // pollRequests().
     PROP(QString requestsJson READWRITE)
 
+    // Spend notifications from the agent (executed spends, including autonomous
+    // under-limit ones), as JSON (an array). Updated by pollRequests().
+    PROP(QString spentJson READWRITE)
+
     // Whether the owner channel is open (agent account + messaging configured).
     PROP(bool channelOpen READWRITE)
 
