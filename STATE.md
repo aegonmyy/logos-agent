@@ -148,9 +148,10 @@ Monitor bi333kn2l tails both logs for stage markers and failures.
   v0.2.0-basecamp-bundles published with all five assets at exactly
   2c2bfcd (tag push triggers no CI; ci.yml fires only on push to main
   and pull_request). submission/LP-0008.md + PR #142 body now point at
-  it; the doc change is committed locally as 5e9408d and deliberately
-  UNPUSHED until the user picks the CI posture (any main push starts a
-  run). Leftover sequencer testcontainers removed (codex + nwaku stay).
+  it; the doc change is committed as bd96715, PUSHED 2026-09-09 with the
+  user's OK (run 34306281260 appeared on it and was cancelled at their
+  instruction; last green stays 34293206202 on a906e22). Leftover
+  sequencer testcontainers removed (codex + nwaku stay).
   Remaining end-game: dispatch real-proof.yml on the final commit
   (needs user OK); pin green run + hashes in PR #142; rebuild
   solutions/LP-0008.md on the fork; flip the PR ready.
