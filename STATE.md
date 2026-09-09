@@ -141,9 +141,19 @@ Monitor bi333kn2l tails both logs for stage markers and failures.
 - #49 doc rewrites with fresh hashes: TESTNET_EVIDENCE.md, THREE_USE_CASES.md,
   THREE_TESTNET_AGENTS.md (cite F10-full mints once landed), SOLUTION.md F9/F10
   lines, README dead-hash check.
-- End-game: re-cut Basecamp bundles on the final commit + tag a release;
-  dispatch real-proof.yml on the final commit; pin green run + hashes in
-  PR #142; rebuild solutions/LP-0008.md on the fork; flip the PR ready.
+- End-game: BUNDLES RE-CUT DONE 2026-09-09.
+  ./scripts/package-basecamp.sh ran clean on 2c2bfcd (dist/: agent.lgx
+  687KB, agent_owner.lgx 748KB, liblogos_agent.so 330MB with nix-store
+  matched libstdc++/glibc, SHA256SUMS.txt); release
+  v0.2.0-basecamp-bundles published with all five assets at exactly
+  2c2bfcd (tag push triggers no CI; ci.yml fires only on push to main
+  and pull_request). submission/LP-0008.md + PR #142 body now point at
+  it; the doc change is committed locally as 5e9408d and deliberately
+  UNPUSHED until the user picks the CI posture (any main push starts a
+  run). Leftover sequencer testcontainers removed (codex + nwaku stay).
+  Remaining end-game: dispatch real-proof.yml on the final commit
+  (needs user OK); pin green run + hashes in PR #142; rebuild
+  solutions/LP-0008.md on the fork; flip the PR ready.
 
 ## Blocked / external
 
