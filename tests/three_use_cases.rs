@@ -36,6 +36,17 @@ const MINT_POLL_ATTEMPTS: usize = 60;
 /// public testnet includes mints but leaves transfers un-included for long
 /// stretches, so this is bounded rather than fatal.
 const TRANSFER_POLL_ATTEMPTS: usize = 40;
+/// Per-attempt bound for the A2A payment send. The Send submit rides the
+/// wallet's pooled HTTP connection, which the testnet drops after short idle
+/// stretches: the hash prints, the transaction never reaches the sequencer,
+/// and the command's internal wait dies with "All pollers failed" (observed
+/// 2026-09-08/09: payments e4f759ed and 905a91c2 both absent from the chain
+/// while same-run public transactions landed). A healthy send completes in
+/// seconds; anything past this bound is a parked connection, and a fresh
+/// attempt gets a fresh connection (same remedy as the mint retry in
+/// three_testnet_agents.rs).
+const PAYMENT_ATTEMPT_TIMEOUT_SECS: u64 = 120;
+const PAYMENT_ATTEMPTS: usize = 3;
 
 fn service_url(name: &str, default: &str) -> String {
     env::var(name).unwrap_or_else(|_| default.to_owned())
@@ -220,26 +231,46 @@ async fn paid_multi_agent_task(wallet: &mut WalletCore) -> Result<()> {
         "payer balance is {payer_balance}; mint was not readable before payment"
     );
     println!("public_payment payer={payer} balance={payer_balance}");
-    let transfer = wallet::cli::execute_subcommand(
-        wallet,
-        Command::Token(TokenProgramAgnosticSubcommand::Send {
-            from: public_mention(payer),
-            to: Some(public_mention(provider_account)),
-            to_npk: None,
-            to_vpk: None,
-            to_keys: None,
-            to_identifier: Some(0),
-            amount: 10,
-        }),
-    )
-    .await?;
-    let SubcommandReturnValue::TransactionExecuted {
-        tx_hash: payment_tx,
-    } = transfer
-    else {
-        anyhow::bail!("expected payment transaction hash");
-    };
-    let payment_tx = payment_tx.to_string();
+    let mut payment_tx = None;
+    for attempt in 1..=PAYMENT_ATTEMPTS {
+        let send = tokio::time::timeout(
+            std::time::Duration::from_secs(PAYMENT_ATTEMPT_TIMEOUT_SECS),
+            wallet::cli::execute_subcommand(
+                wallet,
+                Command::Token(TokenProgramAgnosticSubcommand::Send {
+                    from: public_mention(payer),
+                    to: Some(public_mention(provider_account)),
+                    to_npk: None,
+                    to_vpk: None,
+                    to_keys: None,
+                    to_identifier: Some(0),
+                    amount: 10,
+                }),
+            ),
+        )
+        .await;
+        match send {
+            Err(_) => {
+                eprintln!(
+                    "payment send attempt {attempt}/{} timed out (parked connection); retrying",
+                    PAYMENT_ATTEMPTS
+                );
+            }
+            Ok(Err(error)) => {
+                eprintln!(
+                    "payment send attempt {attempt}/{} failed: {error}; retrying",
+                    PAYMENT_ATTEMPTS
+                );
+            }
+            Ok(Ok(SubcommandReturnValue::TransactionExecuted { tx_hash })) => {
+                payment_tx = Some(tx_hash.to_string());
+                break;
+            }
+            Ok(Ok(_)) => anyhow::bail!("expected payment transaction hash"),
+        }
+    }
+    let payment_tx =
+        payment_tx.with_context(|| format!("payment send failed after {PAYMENT_ATTEMPTS} attempts"))?;
     // Best-effort: the mint above funds the payer on testnet (the on-chain
     // anchor). The payment transfer is submitted; the A2A flow proceeds whether
     // or not the testnet includes it, and the payment state is reported.
