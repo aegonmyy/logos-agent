@@ -7,8 +7,9 @@ fixture.
 
 ## Prerequisites
 
-Set `LEE_WALLET_HOME_DIR` to a funded LEE wallet directory and ensure the wallet
-can reach the current public testnet. The endpoint defaults to:
+The test self-funds: it creates fresh accounts, defines a token (supply 100)
+per agent, and mints to each agent's own account, so no pre-funded wallet is
+needed. The endpoint defaults to:
 
 ```text
 https://testnet.lez.logos.co
@@ -22,7 +23,7 @@ export AGENT_CODEX_URL=http://127.0.0.1:8080
 ```
 
 The service endpoints are optional for identity-only evidence, but are required
-to exercise the Storage and Messaging categories.
+to exercise the Storage and Messaging categories against real backends.
 
 ## Run
 
@@ -53,76 +54,74 @@ testnet agent category=messaging account=<account-id>
 testnet agent category=blockchain account=<account-id>
 ```
 
-It also prints the public testnet block used for the run. When the real service
-endpoints are configured, it prints a Waku message id and a Codex content address.
-Copy the complete output into this document or a dated evidence file, together
-with the testnet transaction hashes and explorer links returned by the wallet.
+It also prints the public testnet block used for the run, and per-agent mint
+state (`included_block=<n> balance=100` on inclusion, `submitted_pending`
+when the bounded mint wait expires). When the real service endpoints are
+configured, it prints a Waku message id and a Codex content address. Copy the
+complete output into this document or a dated evidence file, together with
+the testnet transaction hashes and explorer links returned by the wallet.
 
-## Verified Run
+## Verified Runs (2026-09-08/09, current chain epoch, re-verified live 2026-09-09)
 
-The following run completed on 2026-08-18 with `RISC0_DEV_MODE=0`, the public
-LEZ endpoint, local nwaku v0.38.0, and Logos Storage v0.3.0:
+The public testnet was reset by its operators on 2026-09-08; the runs below
+re-landed the evidence on the fresh chain. Each category agent has an
+**included, verified on-chain token mint** it holds itself, at `RISC0_DEV_MODE=0`.
+The storage row comes from the full-strength run (real Codex + real Waku,
+11,753 s of real proving); the messaging and blockchain rows come from the
+same-day re-land run.
+
+| Category | Agent account | Token | Mint transaction | Block | State |
+|---|---|---|---|---|---|
+| storage | `33hs4jhpyRtenW72TggmNFsALSwBWBp1KUZyS7HRWusd` | `BBbuRmpb5idxPfHnFjgEiLxZXrfex3YWgmzTzg1SJmz4` | `9b510890642f95a10ac4b75ffa6a121c262c065343c44906297347f5ef4266ce` | **458** | `PrivacyPreserving`, 270,845 B, balance 100 |
+| messaging | `5t9amMTzqMtyJUgbR6TeiXkAf4nuNNpvu2a9kGy99ADr` | `GCC4uhLA66V4amdonQd8gD2uZJDAMequTCV5tgCGUXNd` | `328d26a709447c40805fa64eba407a2aa2d91473068434351617a519cb62732e` | **317** | included, balance 100 |
+| blockchain | `GHJcKi85GywQvH2gKevuJYQ98XGnxG8imb9EJkZffBGq` | `CW5wW7aSigdPNpa4EeV1NXPKRmdeB1MopnPeLZNJ3B8s` | `5fc57a20966a637f860e3139dbd2003f9f35ba556d7974156cffc291e3cb560b` | **338** | included, balance 100 |
+
+The full-strength run's messaging and blockchain mint attempts reported
+`submitted_pending` when their inclusion waits hit parked-connection timeouts,
+but the transactions broadcast and landed: oversized shielded blocks 463
+(271,270 B), 508 (272,900 B), 511 (271,514 B), and 558 (544,688 B, two mints)
+appear in the 459–560 range, corroborating the attempts. The verified rows
+above remain the primary citations.
+
+**Real-service evidence from the full-strength run:**
 
 ```text
-testnet agent category=storage account=CJ3u1hzCvZMLN91CMKKfryTWA2PGdDaaMUEmVfVdoh36
-testnet agent category=messaging account=DM63x4x9uGsiwihhyry2CdPYJxbvEJxj12axY7wQuRmt
-testnet agent category=blockchain account=G9sAkVHZZpkZNTaTR9YnQaP3ZWiankDiKUHKDfr7tqcw
-messaging evidence topic=/logos-agent/testnet/evidence/G9sAkVHZZpkZNTaTR9YnQaP3ZWiankDiKUHKDfr7tqcw message_id=local-store-fallback
-storage evidence address=zDvZRwzm5hAtdqy5oTEYRf3JUx9JffNeHSgCgMcQLk3rP1vYs4B2
-testnet evidence block=12902
-test result: ok. 1 passed; 0 failed
+messaging evidence topic=/logos-agent/testnet/evidence/3jPB2RCP7AX3VA9jUUmX51cJZJXPZFm6qTDh3bs8LRQK message_id=3bb660a10984114c4245be5e098d9ee1fdba0c74625f2c4f3298f2dc3ef22ad7
+storage evidence address=zDvZRwzm9WDaKLBS2eg6DWCz4Ww22SbHYzuXFAfbLx4xyRVudMvE
+testnet evidence block=432
 ```
 
-The Messaging assertion publishes the message and reads it back from the local
-nwaku store. A standalone node reports `NoPeersToPublish` when it has no relay
-mesh; the harness accepts that specific condition only after the message is
-confirmed by polling. The Codex assertion uploads encrypted content and verifies
-the downloaded plaintext matches the original bytes.
+The storage address is a real Codex content address (encrypted upload verified
+by download), and the messaging message id is a real Waku message id read back
+from the node's store.
 
-### Re-verified 2026-08-21 (identity deployment, public testnet alive)
+## Per-agent on-chain settlements
 
-A fresh run against the official public LEZ testnet (no service endpoints
-configured, so identity-only) confirmed the testnet is producing blocks and the
-three category agents deploy with distinct identities:
-
-```text
-testnet agent category=storage account=2vcrKfraM1N9ku9V9oGrjWYPy7gmHFwobw9QCY767XmC
-testnet agent category=messaging account=2ne7UEvY3Vhfjn8sHUs5MaCGPoMLnPaoPSaBKxWRkz1L
-testnet agent category=blockchain account=HaGPWVZVwFC6HsZBzoypPuM82o3yXRi2PBXsw7jQpA9k
-testnet evidence block=17716
-test result: ok. 1 passed; 0 failed; finished in 56.93s
-```
-
-The public write path was also re-confirmed the same day: a real-proof
-(`RISC0_DEV_MODE=0`) token mint was included on-chain at block 17716 and the
-holder balance read back as 100 (see `docs/TESTNET_EVIDENCE.md`). This updates
-the earlier "public write path is down" limitation: the path is currently
-healthy and transactions are being included.
-
-## Per-agent on-chain evidence: 2026-08-22
-
-Each of the three category agents now has its own **included, verified on-chain
-transaction** on the public testnet, driven through the agent's own skill
-dispatch: `tests/three_testnet_settlements.rs` deploys a program to the public
-testnet and each agent settles through it — storage at block **18599**,
-messaging at **18600**, blockchain at **18601**, every settlement's account
-ownership change re-read from chain state. Full evidence and RPC
+Each of the three category agents also settles through the agent's own
+deployed program on the public testnet: program deployment at block 144, then
+per-agent `program.call` settlements at blocks **148–150**, every settlement's
+account ownership change re-read from chain state. Full evidence and RPC
 re-verification: [`THREE_TESTNET_SETTLEMENTS.md`](THREE_TESTNET_SETTLEMENTS.md).
 
-An additional per-agent artifact class — a token mint whose supply is the
-agent's own shielded account (so the agent holds the balance) — was attempted
-on 2026-08-22 and did **not** include: the transaction remained unmined for
-three hours while sibling public transactions included in the same window.
-A private-supply mint is a shielded transaction, the same class the sequencer
-drops (verified for token `Send`s; single observation for private mints — see
-[`TESTNET_EVIDENCE.md`](TESTNET_EVIDENCE.md)). The test therefore bounds its
-mint wait and reports `submitted_pending` rather than hanging when the
-sequencer drops the transaction.
+## History (superseded epochs)
+
+Kept for the record; all hashes below are dead on the live chain after the
+2026-09-08 operator reset.
+
+- **2026-08-18 run** (real services, `RISC0_DEV_MODE=0`): identities
+  `CJ3u1hzC…` / `DM63x4x9…` / `G9sAkVHZ…`, evidence block 12902.
+- **2026-08-21 run** (identity-only): identities `2vcrKfra…` /
+  `2ne7UEvY…` / `HaGPWVZV…`, evidence block 17716.
+- **2026-08-22 settlements**: blocks 18599–18601, superseded by the
+  current-epoch settlements at 148–150.
+- The 2026-08-22 observation that private-supply mints never include was
+  epoch-specific: on the current chain the shielded mints above included
+  (blocks 317, 338, 458).
 
 ## Current Repository State
 
 The checked-in `tests/three_category_agents.rs` test is local-sequencer evidence
 only. It must not be presented as public-testnet evidence. Public-testnet
-evidence is this document (identities) plus
+evidence is this document (identities + per-agent mints) plus
 [`THREE_TESTNET_SETTLEMENTS.md`](THREE_TESTNET_SETTLEMENTS.md) (per-agent
-included transactions), both reproducible via the ignored public-testnet suites.
+settled transactions), both reproducible via the ignored public-testnet suites.

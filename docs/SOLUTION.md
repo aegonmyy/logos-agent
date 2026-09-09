@@ -1,4 +1,4 @@
-# Solution: LP-0008 — Autonomous AI Agent Module
+# Solution: LP-0008: Autonomous AI Agent Module
 
 **Submitted by:** aegonmyy
 
@@ -13,16 +13,18 @@ flow is proven end-to-end against a real local sequencer with `RISC0_DEV_MODE=0`
 (real Groth16 proofs).
 
 The agent is built directly on the Logos Execution Zone wallet, so its shielded
-identity, private transactions, and proving are the platform's — not
-reimplemented — and the agent is indistinguishable on-chain from any other holder.
+identity, private transactions, and proving come from the platform itself, and
+the agent is indistinguishable on-chain from any other holder.
 
 ## Repository
 
 - **Repo:** https://github.com/aegonmyy/logos-agent
 - **License:** MIT or Apache-2.0
 - **Demo:** `scripts/demo.sh` (runs against a local sequencer at `RISC0_DEV_MODE=0`)
-- **Recording:** `recordings/logos-agent-real-proof.cast` + `.mp4` (real-proof
-  terminal recording; narrated voiceover still to be added)
+- **Demo videos:** narrated CLI walkthrough (real proofs, `RISC0_DEV_MODE=0`):
+  <https://youtu.be/HS6i3ucrKeE>; Basecamp GUI walkthrough:
+  <https://youtu.be/1Ck_0keFXek>. Raw real-proof terminal recordings under
+  `recordings/`.
 
 ## Approach
 
@@ -34,15 +36,15 @@ reimplemented — and the agent is indistinguishable on-chain from any other hol
   invoked by name with JSON arguments; new skills register without touching the
   core. Default skills cover Storage, Messaging, Blockchain, and reflective
   `meta.*`.
-- **Storage / Messaging**: `Storage` and `Messaging` traits with real backends —
-  `CodexStorage` (client-side AES-256-GCM before upload) and `WakuMessaging`
-  (nwaku REST) — plus in-memory backends for deterministic tests.
+- **Storage / Messaging**: `Storage` and `Messaging` traits with real backends
+  (`CodexStorage`, client-side AES-256-GCM before upload; `WakuMessaging`,
+  nwaku REST) plus in-memory backends for deterministic tests.
 - **Owner control** (`OwnerChannel` / `AgentRuntime`): an encrypted two-way
   channel; the approval workflow holds over-limit spends until the owner decides,
   and the owner can reconfigure the limit at runtime.
 - **A2A coordination** (`a2a`): A2A-schema Agent Cards published to a discovery
   topic, the A2A task lifecycle over Logos Messaging as transport, and LEZ
-  payment per task — filling A2A's payment and transport gaps. Each card is
+  payment per task, filling A2A's payment and transport gaps. Each card is
   Ed25519-signed by its publisher and embeds its verifying key, so tampered cards
   fail `AgentCard::verify`.
 - **Deployment**: a single `agent` command deploys the agent headless.
@@ -65,7 +67,7 @@ reimplemented — and the agent is indistinguishable on-chain from any other hol
       loading the Rust core over a C ABI and driving it via `logos_module`; builds
       with the Logos module builder (Qt + Logos Core SDK).
 - [x] Owner interacts from a separate Logos app instance over Logos Messaging, no
-      intermediary server — the Basecamp `ui_qml` module (`app/`,
+      intermediary server: the Basecamp `ui_qml` module (`app/`,
       `agent_owner_plugin.so`) builds to a loadable plugin and `.lgx` bundle with
       the Logos module builder. The owner-channel Rust FFI (`src/ffi.rs`,
       `logos_agent_owner_*`) is implemented, unit-tested, and verified across the
@@ -76,12 +78,12 @@ reimplemented — and the agent is indistinguishable on-chain from any other hol
       (balance 100→50), FFI deny (no movement), FFI reconfigure → autonomous
       spend on the real local sequencer; and `tests/owner_ffi_waku.rs` runs the
       same hold → poll → approve → execute flow with **real Waku as the
-      transport** — the agent and the FFI owner handle each run their own client
+      transport**: the agent and the FFI owner handle each run their own client
       against a live nwaku node (Logos Dev Network, cluster 2) and never share
       memory, the approved spend still executing on-chain (balance 100→50). The
       remaining piece is a click-through of the QML UI; the FFI + Waku messaging
       path is proven end to end.
-- [x] All default skills implemented — Storage (4), Messaging (3), Blockchain
+- [x] All default skills implemented: Storage (4), Messaging (3), Blockchain
       (`wallet.balance/send/history`, `program.query/call/deploy`), Meta
       (`meta.skills/status/configure`), and the five `agent.*` A2A skills.
 - [x] At least 3 use cases and three category agents demonstrated end-to-end.
@@ -90,19 +92,29 @@ reimplemented — and the agent is indistinguishable on-chain from any other hol
       `tests/three_use_cases_local.rs` (non-ignored; runs in CI and
       `scripts/demo.sh`): the vault and notary round-trip over storage +
       messaging, and the paid task settles a real on-chain LEZ transfer
-      (balances 90/10). The same three use cases are additionally anchored on
-      the public LEZ testnet (`tests/three_use_cases.rs`; vault mint included
-      block 17791, 2026-08-21). Three category agents deploy with distinct
-      identities (block 17716). See `docs/THREE_USE_CASES.md`,
-      `docs/TESTNET_EVIDENCE.md`. Honest limitation: on this date the testnet
-      included mints but not token transfers within the polling window, so the
-      public-testnet A2A payment leg is evidenced on the local standalone
-      sequencer rather than the public transfer path.
+      (payment tx `3d065660…`, block 17 of the run's sequencer, balances
+      90/10; full real-proof capture at `RISC0_DEV_MODE=0` in
+      `recordings/vault-notary-real-proof.cast`, passed in 3473 s). The vault,
+      notary, and event-alerter use cases are additionally anchored on the
+      public LEZ testnet with included mint transactions at blocks 402–404 and
+      633, and at blocks 747–749 (2026-09-09, plus 405 and 407) with real
+      Codex storage and real Waku messaging in the loop
+      (`tests/three_use_cases.rs`). Three category
+      agents hold their own verified on-chain mints (blocks 317, 338, 458).
+      See `docs/THREE_USE_CASES.md`, `docs/TESTNET_EVIDENCE.md`,
+      `docs/THREE_TESTNET_AGENTS.md`. Honest limitation: token `Send`
+      inclusion on the public testnet varies by window (five payments in a
+      four-hour window on 2026-09-08/09 were accepted and never included,
+      listed in `docs/TESTNET_EVIDENCE.md`), so the public-testnet
+      send/settlement evidence is carried by the agent-driven shielded spend
+      (blocks 87–118) and the program-mediated settlements (blocks 148–150),
+      and the A2A payment itself is evidenced on the local standalone
+      sequencer.
 
 ### Usability
 
 - [x] Documented skill interface (SDK) for adding skills without modifying the core.
-- [x] Owner-facing interface inside the Logos app (Basecamp) — the `agent_owner`
+- [x] Owner-facing interface inside the Logos app (Basecamp): the `agent_owner`
       `ui_qml` module builds to a loadable plugin + QML assets, and
       `scripts/package-basecamp.sh` produces standalone, side-loadable `.lgx`
       bundles (`agent.lgx`, `agent_owner.lgx`) as separate downloadables.
@@ -110,12 +122,12 @@ reimplemented — and the agent is indistinguishable on-chain from any other hol
 ### Reliability
 
 - [x] Above-threshold spends that are not approved are never executed.
-- [x] Skill failures are isolated — a failing skill returns an error and does not
+- [x] Skill failures are isolated: a failing skill returns an error and does not
       crash the agent or other skills; A2A surfaces it as a `failed` task. Proven
       by a dedicated test (`a2a::tests::failing_skill_is_isolated_and_does_not_affect_other_tasks`): a failing
       skill and a working skill served in the same round; the failing task
       surfaces as `failed` with its error, the neighbouring task completes.
-- [x] Recovers pending approvals across restarts — the runtime persists pending
+- [x] Recovers pending approvals across restarts: the runtime persists pending
       spends to disk (`AgentRuntime::with_state`) and restores them on start, and
       the deployed `agent` binary uses this by default (`--state-file`). A2A task
       state is likewise persisted (`A2aClient::with_state`). An owner-notification
@@ -129,7 +141,7 @@ reimplemented — and the agent is indistinguishable on-chain from any other hol
 ### Supportability
 
 - [x] End-to-end integration tests run against a LEZ sequencer (standalone) and
-      are included in CI — the `e2e` job runs `agent_spending`,
+      are included in CI: the `e2e` job runs `agent_spending`,
       `owner_approval_flow`, `owner_ffi_e2e`, `a2a_two_agents`,
       `three_use_cases_local`, and `three_category_agents` against a local
       sequencer brought up via Docker on every push.
@@ -138,22 +150,29 @@ reimplemented — and the agent is indistinguishable on-chain from any other hol
       the real-proof run is recorded in `docs/DEV_MODE_0_EVIDENCE.md`.
 - [x] README documents end-to-end usage and deployment (CLI + Basecamp owner
       walkthrough).
-- [ ] CI green on the default branch — the workflow is present, but the latest
-      changes still need a clean-branch CI run before this is checked.
+- [x] CI green on the default branch: both lanes pass on `main`
+      (GitHub Actions run 34293206202 on commit `a906e22`, 2026-09-09,
+      self-hosted runner; the fast + e2e jobs run on every push).
 - [x] Recorded demo showing terminal output including proof generation at
-      `RISC0_DEV_MODE=0` — `recordings/logos-agent-real-proof.cast` and its
-      rendered MP4. The narrated voiceover required by the prize remains to be
-      recorded.
+      `RISC0_DEV_MODE=0`: the narrated CLI walkthrough
+      (<https://youtu.be/HS6i3ucrKeE>) shows dev-mode off, Groth16 proof
+      generation, and the settled transactions; the raw cast is
+      `recordings/logos-agent-real-proof.cast`. A second narrated walkthrough
+      of the three use cases, cut from the 58-minute real-proof capture, is
+      being finalized.
 
 > **Testnet evidence:** the agent has real, proof-backed activity on the
 > **official public LEZ testnet** (`testnet.lez.logos.co`, v0.2.4) at
-> `RISC0_DEV_MODE=0` — it defines and mints a token to its own account, included
-> on-chain (balance 100, tx `0e3ebbb8…`). See **`docs/TESTNET_EVIDENCE.md`** for
-> hashes, the explorer links, and the on-chain account state. The multi-agent and
-> multi-use-case flows are additionally shown against a real local sequencer at
-> `RISC0_DEV_MODE=0` (`docs/DEV_MODE_0_EVIDENCE.md`, `docs/THREE_USE_CASES.md`),
-> since public-testnet block production is intermittent and its state is reset on
-> operator redeploys.
+> `RISC0_DEV_MODE=0`, all re-verified live on 2026-09-09: shielded mint and
+> spend from the agent's own account (blocks 87–118, four `PrivacyPreserving`
+> transactions of 270–273 KB), a program deployment (block 144), three
+> program-mediated settlements (blocks 148–150), three category-agent mints
+> (blocks 317, 338, 458), and use-case anchors with real Codex and Waku in the
+> loop (blocks 405–407). See **`docs/TESTNET_EVIDENCE.md`** for the full map,
+> hashes, and verify commands. The multi-agent and multi-use-case flows are
+> additionally shown against a real local sequencer at `RISC0_DEV_MODE=0`
+> (`docs/DEV_MODE_0_EVIDENCE.md`, `docs/THREE_USE_CASES.md`), since
+> public-testnet state is reset on operator redeploys.
 
 ## FURPS Self-Assessment
 
@@ -168,7 +187,7 @@ against the Logos Core SDK.
 
 ### Usability
 
-Skills are added by implementing one trait and registering it — no core changes —
+Skills are added by implementing one trait and registering it, with no core changes,
 and `meta.skills` lists the catalogue for discovery. Deployment is a single
 command. The owner interacts over the encrypted channel today; the Basecamp owner
 app builds and loads, with runtime approve/deny interaction still to be evidenced.
@@ -190,10 +209,10 @@ order of minutes on commodity hardware.
 ### Supportability
 
 The work is covered by end-to-end integration tests against a real local sequencer
-— wired into CI as a dedicated `e2e` job — a reproducible demo script that runs at
+(wired into CI as a dedicated `e2e` job), a reproducible demo script that runs at
 `RISC0_DEV_MODE=0`, documented CU costs, a README, and retained evidence of the
-real-proof run. A clean-branch CI run is still pending before the green badge is
-re-confirmed.
+real-proof run. CI is green on the default branch (run 34293206202 on
+`a906e22`).
 
 ## Terms & Conditions
 

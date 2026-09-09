@@ -1,21 +1,41 @@
 # STATE — logos-agent working handoff
 
-Updated: 2026-09-08 (evening). Read this first when picking work up cold.
+Updated: 2026-09-09 (morning). Read this first when picking work up cold.
 
 ## Where this stands
 
 LP-0008 submission repo (private until the end-game flip). PR #142 on
 logos-co/lambda-prize is the vehicle, currently a **draft**; flipping it ready
-is the submission act. Deadline: end of Friday 2026-09-18. Criteria walkthrough
-complete: 22/23 MET, sole gap = narrated video covering 3 illustrative use
-cases (close in progress, see below). Last commits on main: e3bf57a (weboko
-audit doc fixes), dcb4a0d (video 2 cast + script), bd24c09 (narratable cut);
-PR #142 body already patched with the live v0.2.0 evidence set (pin e3bf57a,
-blocks 87-118 + 148-150, GUI video no longer claimed narrated).
+is the submission act. Deadline: end of Friday 2026-09-18. Spec verified
+2026-09-09 against the fetched criteria text: lane B (public-testnet paid A2A
+payment) is NOT a prize requirement — the A2A payment criterion names no chain
+venue (met on the standalone sequencer at DEV_MODE=0, balances 90/10, payment
+tx 3d065660 block 17 in the 58-min capture), and "3 illustrative use cases on
+LEZ testnet" is met by vault+notary+alerter anchors. Sole prize gap = narrated
+3-use-case video (user records audio; kit ready, aegonmyy/lp0008-video2).
 
-Weboko audit (#51) closed: every published hash walked via RPC, 8 live
-headline hashes verified minutes before publishing, v0.1.0 dir carries a
-SUPERSEDED marker, dead surfaces scheduled for rewrite in #49.
+#49 doc rewrites DONE this morning (pending commit): TESTNET_EVIDENCE.md
+(restructured to current epoch, evidence map + headline table), THREE_USE_CASES.md
+(fresh anchor tables + lane-selection env precedence documented), 
+THREE_TESTNET_AGENTS.md (self-funding prerequisite, two-run identity/mint table),
+SOLUTION.md (6 stale spots fixed: YT video links, criteria 9 with live hashes,
+CI checkbox flipped green on run 34293206202 / a906e22). All em dashes removed
+from the four docs (de-slop sweep).
+
+**Lapsed-hash discovery 2026-09-09 morning:** of 20 headline hashes
+batch-verified live, 3 now return null (notary service anchor cb1b2b89/406,
+notary re-run 83c20690/634, alerter re-run d6956ed4/635). Block 406 now serves
+a 272,701B shielded block (no room for our anchor); 634/635 changed shape too:
+the operator's node is serving different content for some older heights. The
+other 17 are stable (87-118, 144, 148-150, 317, 338, 458, 402-405, 407, 633).
+Response: fresh lane A run 2026-09-09 morning LANDED and live-verified
+(/tmp/laneA-fresh.log, 1 passed 164.35s): vault tx 54bfd294... block 747
+(real Codex CID zDvZRwzm4zQmJH...), notary tx 5a90dd77... block 748 (real
+Codex CID zDvZRwzkxZxD..., digest 5999d285 again), alerter tx c9d8debd...
+block 749. Docs cite the fresh trio as primary + the still-live older rows;
+lapsed rows dropped with an honest note. Narration script rewritten 2026-09-09
+as a sync-free rough read (user records at own pace; section-level alignment,
+holds stretched after); kit repo aegonmyy/lp0008-video2 pushed 382197c.
 
 ## What is running (evening 2026-09-08, all automatic, logs under /tmp)
 
@@ -30,11 +50,62 @@ SUPERSEDED marker, dead surfaces scheduled for rewrite in #49.
 3. Lane A DONE 20:19 (1 passed, 171.01s): real Codex + Waku anchors verified
    LIVE: vault 405 (cid zDvZRwzm2qMNXP9...), notary 406 (sha256 5999d285...,
    same doc hash as #48), alerter 407.
-4. Lane B RUNNING since 20:19: payer funded (8K5JHkmr..., balance 100),
-   payment tx e4f759ed8e9b5e338f585ba6ff8d7221f9b6fcd78e967db0cf93cce7f680
-   89f1 submitted, proving.
-5. F10 full-strength identities queued after lane B.
-6. MASTER_CHAIN_DONE -> night-autopush pushes main, CI runs overnight.
+4. Lane B saga (paid task with public payment, RUN_PAID_A2A=1):
+   run 1 FAILED 20:44 (0 passed, exit=101, 1520s) — payer funded, payment
+   e4f759ed submitted then "All pollers failed" (wallet multi_poll all-
+   connections-error, poller.rs:109 = the flap); public payer tx 4914b317
+   LANDED block 408 (373B), shielded payment never broadcast (getTransaction
+   null). RETRY "PASS" 00:07 WAS A FALSE LANE: my laneb-retry.sh carried
+   SERVICE_BACKEND=memory, and the test checks SERVICE_BACKEND=memory FIRST
+   and early-returns after the public anchors (three_use_cases.rs:470-480) —
+   so run 2 was another #48-style anchor pass (bonus anchors blocks 633-638
+   incl. probe 1's), NOT the paid leg. Correct invocation = master-chain-v2.sh
+   line 45 verbatim: RISC0_DEV_MODE=0 RUN_PAID_A2A=1, no SERVICE_BACKEND.
+   laneb-retry.sh fixed; REAL lane B attempt 1 FAILED again 00:36 (0 passed,
+   exit=101, 1512.78s): setup mint 64a49b4c landed block 641 (373B public),
+   payment 905a91c2 hash printed then "All pollers failed"; BOTH payments
+   (905a91c2 + run 1's e4f759ed) confirmed ABSENT from chain while same-run
+   public txs land — root cause: the Send submit rides the wallet's pooled
+   HTTP connection, dropped by the testnet after short idle stretches (hash
+   prints, tx never reaches sequencer, command's internal wait dies);
+   wait_for_transaction_bounded tolerates poll errors but the Send's INTERNAL
+   wait propagates the error. FIX (00:45): tests/three_use_cases.rs Send leg
+   wrapped in 3-attempt x 120s timeout retry (PAYMENT_ATTEMPT_TIMEOUT_SECS,
+   mirrors the mint retry in three_testnet_agents.rs), compiled clean, NOT
+   yet committed. ATTEMPT 2 (with fix) FAILED 00:53 (0 passed, exit=101,
+   429.28s): setup mint d1c5045e landed block 670 instantly, then 3 payment
+   attempts (91873589, 68b9c1be, e9cc8dc7) each printed a hash and timed out
+   at the 120s bound; ALL payment txs confirmed null. NET: 5 payments
+   submitted tonight across 4h (e4f759ed, 905a91c2, 91873589, 68b9c1be,
+   e9cc8dc7), zero included, while same-run mints land in seconds — this is
+   the DOCUMENTED testnet behavior ("includes mints but leaves transfers
+   un-included for long stretches", TRANSFER_POLL_ATTEMPTS comment), not a
+   code bug. Hardening committed LOCAL e758cf8 (not pushed): turns the 25-min
+   hang into a bounded 7-min failure. LANE B CLOSED for tonight — morning
+   choice: (a) single re-run in a healthier chain window (command ready in
+   laneb-retry.sh), or (b) accept posture: F9 anchors fully covered by
+   #48/lane A (+ bonus 633-638), paid task evidenced at DEV_MODE=0 on the
+   local sequencer (58-min cast, video 2) + video 1; docs never claimed
+   public-testnet A2A payment. LESSON: copy stage invocations verbatim from
+   the chain script; env precedence in the test (memory backend
+   early-return) silently picks a different lane.
+5. F10 full-strength identities DONE 00:01 (1 passed, 11753.33s, exit 0):
+   storage mint VERIFIED LIVE (tx 9b510890..., block 458, 270,845B, balance
+   100); messaging + blockchain mints reported submitted_pending after all
+   retries hit parked-connection timeouts — BUT the timed-out attempts
+   broadcast and landed: oversized shielded blocks 463 (271,270B), 508
+   (272,900B), 511 (271,514B), 558 (544,688B = two mints) in 459-560; no
+   hashes captured (timeout killed the command before its hash print), so
+   #47's verified mints stay primary for messaging (block 317) / blockchain
+   (block 338), these blocks corroborate. Real-service evidence landed:
+   storage address zDvZRwzm9WDaKLBS2eg6DWCz4Ww22SbHYzuXFAfbLx4xyRVudMvE (real
+   Codex CID), messaging topic /logos-agent/testnet/evidence/3jPB2RCP7...
+   message_id 3bb660a10984114c4245be5e098d9ee1fdba0c74625f2c4f3298f2dc3ef22ad7
+   (real Waku), evidence block 432.
+6. MASTER_CHAIN_DONE 00:01 -> autopush DONE: origin/main = a906e22 (verified
+   via ls-remote), CI on it COMPLETED SUCCESS (run 34293206202) at ~01:00.
+   STATE.md + local commit e758cf8 (payment hardening) unpushed, ride the
+   morning evidence batch.
 
 Watchdog (night-watchdog.sh, armed on pid 477945): kills a stage's cargo
 tree only if BOTH queue logs and ALL r0vm CPU are frozen for 45 straight
@@ -58,10 +129,12 @@ Monitor bi333kn2l tails both logs for stage markers and failures.
 ## After the queue drains (tonight/tomorrow)
 
 - Watch lane B -> F10-full -> autopush; verify CI green on the pushed commit.
-- Video 2: render the narratable cast to mp4, user reads
+- Video 2: narratable mp4 rendered (4:23, agg), user reads
   recordings/vault-notary-narration.md in sync TONIGHT, mux audio, upload,
-  link in PR. Videos already on YT are the only video source (demo release
-  assets deleted 2026-09-08).
+  link in PR. Portable kit copy pushed to private repo
+  aegonmyy/lp0008-video2 (raw cast, narratable cast + mp4, narration script,
+  retimer, README). Videos already on YT are the only video source (demo
+  release assets deleted 2026-09-08).
 - #49 doc rewrites with fresh hashes: TESTNET_EVIDENCE.md, THREE_USE_CASES.md,
   THREE_TESTNET_AGENTS.md (cite F10-full mints once landed), SOLUTION.md F9/F10
   lines, README dead-hash check.
