@@ -5,9 +5,9 @@
 //!
 //! This is the evidence the reviewer asked for: a public-testnet transaction
 //! that carries a proof, reproducible at real-proof mode. The run on
-//! 2026-09-08 landed a 271,076-byte PrivacyPreserving transaction in block
-//! 42709 (tx 606bb9b5...); the RPC snapshot is committed at
-//! docs/testnet-evidence/v0.1.0/rpc/shielded-send-01.json.
+//! 2026-09-09 (CI, real-proof.yml) landed a 271,076-byte PrivacyPreserving
+//! transaction in block 1032 (tx 385ee272...), included 14 seconds after
+//! submission; verify with the size-check curl in submission/LP-0008.md.
 //!
 //! The testnet exposes `getProofsAndRoot` (verified 2026-09-08), so the
 //! wallet can construct the PrivacyPreserving transaction. The prior
@@ -221,17 +221,15 @@ async fn shielded_send_lands_on_public_testnet() -> Result<()> {
     .await;
 
     let tx_hash = match &send_result {
-        Ok(rv) => {
-            let s = format!("{rv:?}");
-            // TransactionExecuted { tx_hash: <64 hex> }
-            let h = s
-                .split("tx_hash:")
-                .nth(1)
-                .and_then(|t| t.split(|c: char| !c.is_ascii_hexdigit()).next())
-                .unwrap_or("")
-                .trim();
+        Ok(SubcommandReturnValue::TransactionExecuted { tx_hash }) => {
+            let h = tx_hash.to_string();
             eprintln!("PROBE: send submitted, tx_hash={h}");
-            h.to_owned()
+            h
+        }
+        Ok(other) => {
+            eprintln!("PROBE: send returned an unexpected value: {other:?}");
+            let _ = std::fs::remove_dir_all(&dir);
+            bail!("send returned {other:?} without an executed tx hash");
         }
         Err(e) => {
             eprintln!("PROBE: send FAILED to submit: {e}");

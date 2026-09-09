@@ -131,6 +131,29 @@ Monitor bi333kn2l tails both logs for stage markers and failures.
 
 ## After the queue drains (tonight/tomorrow)
 
+- PROBE ROOT CAUSE + RE-RUN CHAIN (2026-09-09). Real-proof run 34313591594
+  flapped on the testnet probe, and the flap was NEVER the testnet: the job
+  log proves mint landed in 63s, the shielded send (tx 385ee272..., 271,076 B,
+  type 0x01) was included 14s after submission in block 1032, holder settled
+  100 -> 90 on chain. The test's Debug-scrape hash extraction was unpassable
+  by construction: derived struct-variant Debug prints "tx_hash: <hex>" with
+  a space, and splitting on non-hex chars from "tx_hash:" returns the empty
+  segment before the space, so tx_hash was always "". Fixed by matching the
+  SubcommandReturnValue::TransactionExecuted variant directly (tests/
+  testnet_shielded_probe.rs; cargo check green). Chain that follows: push the
+  fix, ci.yml green on the new head, dispatch real-proof on the same head
+  (probe should now PASS end to end), then repin LP-0008.md run links,
+  rebuild the fork file, refresh PR #142 body (fresh block-1032 evidence +
+  honest probe narrative), re-flip ready (user's standing "if ci indeed
+  passes in all then do flip"). PR #142 was moved back to DRAFT 2026-09-09
+  pending this chain.
+- Eden gap analysis (2026-09-09, clone at ~/lp0008-eden): his #129 was closed
+  by weboko on exactly the three objections our #142 answers. His resubmission
+  posture: on-chain policy accounts (limit enforced on chain, not in
+  process), check-docs.py gates binding docs to code, four-command clean-
+  clone verification, limitations stated plainly. His live-deployment hole:
+  all three published agents can never have an above-threshold spend
+  approved (anchoring freeze) and their limits can never be updated.
 - Watch lane B -> F10-full -> autopush; verify CI green on the pushed commit.
 - Video 2: DONE 2026-09-09. The user recorded the narration and uploaded
   the demo themselves: https://youtu.be/dg6RuNw44a8. Link + reviewer CC tip
