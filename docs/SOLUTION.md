@@ -24,7 +24,8 @@ the agent is indistinguishable on-chain from any other holder.
 - **Demo videos:** narrated CLI walkthrough (real proofs, `RISC0_DEV_MODE=0`):
   <https://youtu.be/HS6i3ucrKeE>; Basecamp GUI walkthrough:
   <https://youtu.be/1Ck_0keFXek>. Raw real-proof terminal recordings under
-  `recordings/`.
+  `recordings/`. Reviewer tip: turn on YouTube subtitles (CC) for the
+  narrated walkthrough; the GUI demo's captions are burned into the picture.
 
 ## Approach
 
@@ -157,7 +158,8 @@ the agent is indistinguishable on-chain from any other holder.
       `RISC0_DEV_MODE=0`: the narrated CLI walkthrough
       (<https://youtu.be/HS6i3ucrKeE>) shows dev-mode off, Groth16 proof
       generation, and the settled transactions; the raw cast is
-      `recordings/logos-agent-real-proof.cast`. A second narrated walkthrough
+      `recordings/logos-agent-real-proof.cast`. Turn on YouTube subtitles
+      (CC) for the narration. A second narrated walkthrough
       of the three use cases, cut from the 58-minute real-proof capture, is
       being finalized.
 
