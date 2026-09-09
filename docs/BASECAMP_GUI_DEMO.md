@@ -70,4 +70,4 @@ reliable than xdotool coordinate guessing against a QQuickWidget.
 The recording has no narration; timed stage captions and a final settlement
 summary are overlaid on the video so it is legible without sound. A
 human-narrated cut covering the Basecamp app and CLI will accompany the
-re-submission; the narration script is `submission/DEMO_SCRIPT.md`.
+re-submission.

@@ -1,4 +1,4 @@
-# STATE — logos-agent working handoff
+# STATE - logos-agent working handoff
 
 Updated: 2026-09-09 (morning). Read this first when picking work up cold.
 
@@ -8,13 +8,13 @@ LP-0008 submission repo (private until the end-game flip). PR #142 on
 logos-co/lambda-prize is the vehicle, currently a **draft**; flipping it ready
 is the submission act. Deadline: end of Friday 2026-09-18. Spec verified
 2026-09-09 against the fetched criteria text: lane B (public-testnet paid A2A
-payment) is NOT a prize requirement — the A2A payment criterion names no chain
+payment) is NOT a prize requirement - the A2A payment criterion names no chain
 venue (met on the standalone sequencer at DEV_MODE=0, balances 90/10, payment
 tx 3d065660 block 17 in the 58-min capture), and "3 illustrative use cases on
 LEZ testnet" is met by vault+notary+alerter anchors. Sole prize gap = narrated
 3-use-case video (user records audio; kit ready, aegonmyy/lp0008-video2).
 
-#49 doc rewrites DONE this morning (pending commit): TESTNET_EVIDENCE.md
+#49 doc rewrites DONE (commit e9c3d99, pushed): TESTNET_EVIDENCE.md
 (restructured to current epoch, evidence map + headline table), THREE_USE_CASES.md
 (fresh anchor tables + lane-selection env precedence documented), 
 THREE_TESTNET_AGENTS.md (self-funding prerequisite, two-run identity/mint table),
@@ -40,24 +40,24 @@ holds stretched after); kit repo aegonmyy/lp0008-video2 pushed 382197c.
 ## What is running (evening 2026-09-08, all automatic, logs under /tmp)
 
 1. R recording DONE 20:12 (58 min, 1 passed in 3473.40s at DEV_MODE=0) ->
-   recordings/vault-notary-real-proof.cast. Retimed to a 4:26 narratable cut
-   (recordings/vault-notary-narratable.cast, beats pinned so each paragraph
-   lands on its on-screen moment; retime_vault_notary.py). Narration script
-   with sync windows: recordings/vault-notary-narration.md. User records the
-   voiceover TONIGHT against the narratable mp4 (render pending, see below).
+   recordings/vault-notary-real-proof.cast. Retimed to a 5:07 narratable cut
+   (recordings/vault-notary-narratable.cast; retime_vault_notary.py). The
+   narration script lives ONLY in the private kit repo aegonmyy/lp0008-video2
+   (sync-free rough read; scripts were stripped from this repo 2026-09-09).
+   User records the voiceover against the narratable mp4 at their own pace.
 2. #48 F9 anchors DONE 20:16 (1 passed, 181.71s): vault block 402, notary 403,
    alerter 404, all verified LIVE.
 3. Lane A DONE 20:19 (1 passed, 171.01s): real Codex + Waku anchors verified
    LIVE: vault 405 (cid zDvZRwzm2qMNXP9...), notary 406 (sha256 5999d285...,
    same doc hash as #48), alerter 407.
 4. Lane B saga (paid task with public payment, RUN_PAID_A2A=1):
-   run 1 FAILED 20:44 (0 passed, exit=101, 1520s) — payer funded, payment
+   run 1 FAILED 20:44 (0 passed, exit=101, 1520s) - payer funded, payment
    e4f759ed submitted then "All pollers failed" (wallet multi_poll all-
    connections-error, poller.rs:109 = the flap); public payer tx 4914b317
    LANDED block 408 (373B), shielded payment never broadcast (getTransaction
    null). RETRY "PASS" 00:07 WAS A FALSE LANE: my laneb-retry.sh carried
    SERVICE_BACKEND=memory, and the test checks SERVICE_BACKEND=memory FIRST
-   and early-returns after the public anchors (three_use_cases.rs:470-480) —
+   and early-returns after the public anchors (three_use_cases.rs:470-480),
    so run 2 was another #48-style anchor pass (bonus anchors blocks 633-638
    incl. probe 1's), NOT the paid leg. Correct invocation = master-chain-v2.sh
    line 45 verbatim: RISC0_DEV_MODE=0 RUN_PAID_A2A=1, no SERVICE_BACKEND.
@@ -65,7 +65,7 @@ holds stretched after); kit repo aegonmyy/lp0008-video2 pushed 382197c.
    exit=101, 1512.78s): setup mint 64a49b4c landed block 641 (373B public),
    payment 905a91c2 hash printed then "All pollers failed"; BOTH payments
    (905a91c2 + run 1's e4f759ed) confirmed ABSENT from chain while same-run
-   public txs land — root cause: the Send submit rides the wallet's pooled
+   public txs land - root cause: the Send submit rides the wallet's pooled
    HTTP connection, dropped by the testnet after short idle stretches (hash
    prints, tx never reaches sequencer, command's internal wait dies);
    wait_for_transaction_bounded tolerates poll errors but the Send's INTERNAL
@@ -77,11 +77,11 @@ holds stretched after); kit repo aegonmyy/lp0008-video2 pushed 382197c.
    attempts (91873589, 68b9c1be, e9cc8dc7) each printed a hash and timed out
    at the 120s bound; ALL payment txs confirmed null. NET: 5 payments
    submitted tonight across 4h (e4f759ed, 905a91c2, 91873589, 68b9c1be,
-   e9cc8dc7), zero included, while same-run mints land in seconds — this is
+   e9cc8dc7), zero included, while same-run mints land in seconds - this is
    the DOCUMENTED testnet behavior ("includes mints but leaves transfers
    un-included for long stretches", TRANSFER_POLL_ATTEMPTS comment), not a
    code bug. Hardening committed LOCAL e758cf8 (not pushed): turns the 25-min
-   hang into a bounded 7-min failure. LANE B CLOSED for tonight — morning
+   hang into a bounded 7-min failure. LANE B CLOSED for tonight - morning
    choice: (a) single re-run in a healthier chain window (command ready in
    laneb-retry.sh), or (b) accept posture: F9 anchors fully covered by
    #48/lane A (+ bonus 633-638), paid task evidenced at DEV_MODE=0 on the
@@ -92,7 +92,7 @@ holds stretched after); kit repo aegonmyy/lp0008-video2 pushed 382197c.
 5. F10 full-strength identities DONE 00:01 (1 passed, 11753.33s, exit 0):
    storage mint VERIFIED LIVE (tx 9b510890..., block 458, 270,845B, balance
    100); messaging + blockchain mints reported submitted_pending after all
-   retries hit parked-connection timeouts — BUT the timed-out attempts
+   retries hit parked-connection timeouts - BUT the timed-out attempts
    broadcast and landed: oversized shielded blocks 463 (271,270B), 508
    (272,900B), 511 (271,514B), 558 (544,688B = two mints) in 459-560; no
    hashes captured (timeout killed the command before its hash print), so
@@ -104,8 +104,8 @@ holds stretched after); kit repo aegonmyy/lp0008-video2 pushed 382197c.
    (real Waku), evidence block 432.
 6. MASTER_CHAIN_DONE 00:01 -> autopush DONE: origin/main = a906e22 (verified
    via ls-remote), CI on it COMPLETED SUCCESS (run 34293206202) at ~01:00.
-   STATE.md + local commit e758cf8 (payment hardening) unpushed, ride the
-   morning evidence batch.
+   e758cf8 (payment hardening) and the morning doc batch rode e9c3d99, pushed
+   to origin/main.
 
 Watchdog (night-watchdog.sh, armed on pid 477945): kills a stage's cargo
 tree only if BOTH queue logs and ALL r0vm CPU are frozen for 45 straight
@@ -129,12 +129,12 @@ Monitor bi333kn2l tails both logs for stage markers and failures.
 ## After the queue drains (tonight/tomorrow)
 
 - Watch lane B -> F10-full -> autopush; verify CI green on the pushed commit.
-- Video 2: narratable mp4 rendered (4:23, agg), user reads
-  recordings/vault-notary-narration.md in sync TONIGHT, mux audio, upload,
-  link in PR. Portable kit copy pushed to private repo
-  aegonmyy/lp0008-video2 (raw cast, narratable cast + mp4, narration script,
-  retimer, README). Videos already on YT are the only video source (demo
-  release assets deleted 2026-09-08).
+- Video 2: narratable mp4 rendered (5:07, agg), user reads the sync-free
+  script from the private kit repo aegonmyy/lp0008-video2 (212a01d) at their
+  own pace, then mux audio, upload, link in PR. All narration scripts were
+  stripped from this repo 2026-09-09; the kit repo is their only home.
+  Videos already on YT are the only video source (demo release assets
+  deleted 2026-09-08).
 - #49 doc rewrites with fresh hashes: TESTNET_EVIDENCE.md, THREE_USE_CASES.md,
   THREE_TESTNET_AGENTS.md (cite F10-full mints once landed), SOLUTION.md F9/F10
   lines, README dead-hash check.
