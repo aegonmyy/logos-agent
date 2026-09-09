@@ -182,8 +182,20 @@ Monitor bi333kn2l tails both logs for stage markers and failures.
   getAccount-verified LE, 38 paths OK, 0 em dashes. PR #142 body found
   stale (pinned e3bf57a, pre-snapshot-era; hedged pin paragraph; CI
   bullet unpinned) - updated to the new head after the fork rebuild. REPO IS PUBLIC as of 2026-09-09 (user
-  flipped it; API private:false). Local main == origin/main ==
-  d47e8c4.
+  flipped it; API private:false).
+
+END-GAME CI CHAIN (user authorized overnight 2026-09-09, incl. the
+PR flip conditional on all-green): run #69 = 34309553026 dispatched on
+965ab1a COMPLETED SUCCESS (e2e 1192s, clean-build 606s; e758cf8 lane-B
+retry executed clean in three_use_cases_local). Pin commit X then swaps
+both CI pin sites to 34309553026/965ab1a; X's own push-triggered run is
+LEFT GREEN (cancel rule superseded for this chain). After X green:
+dispatch real-proof.yml on X (never dispatched before, 0 runs in
+history; user pre-approved), rebuild fork file byte-identical, repin
+PR #142 body to X, add real-proof link to the BODY ONLY (file keeps
+"on demand" phrasing; committing the link would move head past the
+green run). MAIN FREEZES AT X until the flip. Flip = GraphQL
+markPullRequestReadyForReview (REST PATCH ignores draft on fork PRs).
 
 ## Blocked / external
 
