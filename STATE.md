@@ -131,6 +131,29 @@ Monitor bi333kn2l tails both logs for stage markers and failures.
 
 ## After the queue drains (tonight/tomorrow)
 
+- CHAIN COMPLETE + FLIPPED (2026-09-09 ~10:33Z). Real-proof 34326632248 on
+  22e9cee green AND log-verified clean (no ##[error]/panics/nonzero exits;
+  agent_spending 5171.79s, probe 2029.56s: fresh tx 6c5aa75e, block 1225,
+  271,076 B, 0x01, holder 100 -> 90, included 8s after submission;
+  RPC-verified live). Fast CI 34326620286 on 22e9cee green + log-verified.
+  Pre-flip checks all green (fork byte-identical 26,336 B, PR head = fork
+  tip 53a702f, Validate Submission green). PR #142 FLIPPED READY via
+  GraphQL markPullRequestReadyForReview, isDraft=false confirmed via REST.
+  Body carries the two-lane CI section (why DEV_MODE=0 lives outside
+  ci.yml) + the swallowed-error correction.
+- ADVERSARIAL REVIEW (2026-09-09, fresh-context agent, all claims
+  self-verified): verdict FIX-BEFORE-REVIEW on one MAJOR - strongest
+  evidence (22e9cee runs, probe tx 6c5aa75e) existed only in the PR body
+  while the graded solutions file still pinned 965ab1a/34309553026 (the
+  exact "file is not the single source" shape that closed eden's #129).
+  Also: "explorer does not index PP txs" was FALSE (explorer renders them,
+  reports Proof Size 261,095 B - corroborating evidence we were
+  discarding); early-epoch anchor hashes now read null; release wording
+  overstated ("re-cut from submitted source tree" vs built at 2c2bfcd,
+  docs-only delta since); workflow header said 99 min vs measured 120.5.
+  All folded into the one-go docs commit; criteria walk: 22 MET, F9 WEAK
+  (full use-case flows on local sequencer, public testnet holds anchors +
+  shielded spends; disclosed as such), video voice human (user recorded).
 - PROBE ROOT CAUSE + RE-RUN CHAIN (2026-09-09). Real-proof run 34313591594
   flapped on the testnet probe, and the flap was NEVER the testnet: the job
   log proves mint landed in 63s, the shielded send (tx 385ee272..., 271,076 B,

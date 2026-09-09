@@ -3,9 +3,9 @@ name: real-proof-e2e
 # The RISC0_DEV_MODE=0 lane: real Groth16 proofs, no dev-mode shortcuts.
 #
 # Runs ON DEMAND (workflow_dispatch), not on every push. Real proving is slow
-# (the full lane measured 99 min on the self-hosted runner: ~65 min for the
-# local agent-spending flow at DEV_MODE=0, then the public-testnet probe), so
-# triggering it on every push would make every push hold a
+# (the full lane measured 120 min on the self-hosted runner: 86 min for the
+# local agent-spending flow at DEV_MODE=0, then 34 min for the public-testnet
+# probe), so triggering it on every push would make every push hold a
 # runner hostage and freeze the branch (the fast CI lane cancels in-flight
 # runs on new pushes). Instead:
 #

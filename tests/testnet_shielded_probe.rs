@@ -4,10 +4,11 @@
 //! public transaction with no proof.
 //!
 //! This is the evidence the reviewer asked for: a public-testnet transaction
-//! that carries a proof, reproducible at real-proof mode. The run on
-//! 2026-09-09 (CI, real-proof.yml) landed a 271,076-byte PrivacyPreserving
-//! transaction in block 1032 (tx 385ee272...), included 14 seconds after
-//! submission; verify with the size-check curl in submission/LP-0008.md.
+//! that carries a proof, reproducible at real-proof mode. The green CI run
+//! 34326632248 (real-proof.yml, 2026-09-09) landed a 271,076-byte
+//! PrivacyPreserving transaction in block 1225 (tx 6c5aa75e...), included
+//! 8 seconds after submission; verify with the size-check curl in
+//! submission/LP-0008.md.
 //!
 //! The testnet exposes `getProofsAndRoot` (verified 2026-09-08), so the
 //! wallet can construct the PrivacyPreserving transaction. The prior
