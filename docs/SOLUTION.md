@@ -26,8 +26,8 @@ the agent is indistinguishable on-chain from any other holder.
   voice, cut from the 58-minute real-proof capture:
   <https://youtu.be/dg6RuNw44a8>; Basecamp GUI walkthrough:
   <https://youtu.be/1Ck_0keFXek>. Raw real-proof terminal recordings under
-  `recordings/`. Reviewer tip: turn on YouTube subtitles (CC) for the
-  narrated videos; the GUI demo's captions are burned into the picture.
+  `recordings/`. Reviewer tip: turn on YouTube subtitles (CC); all three
+  videos are narrated and carry subtitles.
 
 ## Approach
 

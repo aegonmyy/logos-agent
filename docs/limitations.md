@@ -52,7 +52,7 @@ Two items previously listed here are resolved and now carry their own evidence:
 - **The owner GUI click-through** is recorded: `recordings/basecamp-gui-demo.mp4`
   (https://youtu.be/1Ck_0keFXek), a human-driven Basecamp session approving,
   denying, and reconfiguring a live agent over real Waku, every decision
-  settled on chain; the captions are burned into the recording. See
+  settled on chain; narrated, with subtitles via YouTube CC. See
   `docs/BASECAMP_GUI_DEMO.md`.
 - **The public testnet dropping token-program transfers** (2026-08-22) was a
   transient sequencer condition, no longer reproducible: on 2026-09-08 the

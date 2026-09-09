@@ -6,7 +6,9 @@ every decision settled on a real local LEZ sequencer. A real human drives the
 GUI over VNC with a real cursor; the agent driver waits for each GUI decision
 and verifies the on-chain balance after each stage.
 
-- **Video:** `recordings/basecamp-gui-demo.mp4` (4 min 32 s, 1920x1080)
+- **Video (YouTube upload):** <https://youtu.be/1Ck_0keFXek>, narrated by
+  the builder, subtitles via CC; underlying capture
+  `recordings/basecamp-gui-demo.mp4` (4 min 32 s, 1920x1080)
 - **Reproduce (interactive, human-driven):** `scripts/record-gui-demo-interactive.sh`
   (brings up Xvfb + x11vnc + noVNC + nwaku + the `logos-standalone-app` with the
   `agent_owner` plugin + the agent driver test; you drive the GUI in a browser
@@ -67,7 +69,7 @@ reliable than xdotool coordinate guessing against a QQuickWidget.
 
 ## Narration
 
-The recording has no narration; timed stage captions and a final settlement
-summary are overlaid on the video so it is legible without sound. A
-human-narrated cut covering the Basecamp app and CLI will accompany the
-re-submission.
+The YouTube upload (<https://youtu.be/1Ck_0keFXek>) is narrated by the
+builder and carries subtitles (turn on CC on YouTube). The reproduce
+scripts render the underlying capture with timed stage captions and a final
+settlement summary overlaid on the framebuffer.
