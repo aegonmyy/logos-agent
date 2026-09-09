@@ -154,12 +154,24 @@ Monitor bi333kn2l tails both logs for stage markers and failures.
   sequencer testcontainers removed (codex + nwaku stay).
   Remaining end-game: dispatch real-proof.yml on the final commit
   (needs user OK); pin green run + hashes in PR #142; flip the PR
-  ready. FORK REBUILD DONE 2026-09-09: submission/LP-0008.md copied
-  to fork aegonmyy/lambda-prize solutions/LP-0008.md, branch
-  solution/lp-0008 pushed as 95eacef (clone at /home/ubuntu/lambda-prize);
-  PR #142 head = 95eacef, still draft on purpose; prize repo's Validate
-  Submission workflow passed on it (GitHub-hosted, unrelated to our
-  cancelled self-hosted CI).
+  ready. FORK REBUILD DONE 2026-09-09 (95eacef), then LIVE-EPOCH
+  RE-STAMP same day (main d47e8c4, pushed with its CI run
+  34308342961 cancelled; fork ee454a6, Validate Submission green):
+  every dead pre-reset hash in the solution file replaced with
+  live-verified evidence (shielded 87/88/111/118 + mints 458, 317
+  [338 lapsed-null, disclosed] + deploy 144 + settlements 148-150 +
+  anchors 747-749 + program-id getAccount proof), v0.1.0 snapshot
+  refs swapped to v0.2.0, CI claim pins run 34293206202 on a906e22,
+  reliability tests named with run commands, 855.9s -> 170.5s,
+  real-proof.yml comment de-staled. Every criterion now carries an
+  inline verification path (command / link / runnable test).
+  Batch-verified before publish: 13 live hashes, 37 paths, 4 named
+  tests, 3 videos, CI run green. An independent hostile-review agent
+  (fresh context) confirmed the old file's dead-hash blockers plus
+  extra findings, all folded in; its second pass on the new file was
+  in flight at writing. REPO IS PUBLIC as of 2026-09-09 (user
+  flipped it; API private:false). Local main == origin/main ==
+  d47e8c4.
 
 ## Blocked / external
 
