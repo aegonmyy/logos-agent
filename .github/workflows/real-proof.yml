@@ -66,9 +66,11 @@ jobs:
         env:
           AGENT_TESTNET_URL: https://testnet.lez.logos.co
         # The public testnet flaps (its sequencer goes up and down behind an
-        # nginx that returns 502). The durable evidence is the committed RPC
-        # snapshot (271,076 bytes, block 42709, docs/SHIELDED_TESTNET_PROOF.md);
-        # this step re-lands equivalent evidence when the testnet is up, but
-        # must not red CI when it is down. The required real-proof lane is the
-        # local agent_spending step above (deterministic, DEV_MODE=0).
+        # nginx that returns 502). The durable evidence is the on-chain
+        # shielded set plus its committed RPC snapshots (blocks 87-118, ~270 KB
+        # proof-bearing bodies, docs/SHIELDED_TESTNET_PROOF.md,
+        # docs/testnet-evidence/v0.2.0/rpc/); this step re-lands equivalent
+        # evidence when the testnet is up, but must not red CI when it is down.
+        # The required real-proof lane is the local agent_spending step above
+        # (deterministic, DEV_MODE=0).
         continue-on-error: true
