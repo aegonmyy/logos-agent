@@ -22,10 +22,12 @@ the agent is indistinguishable on-chain from any other holder.
 - **License:** MIT or Apache-2.0
 - **Demo:** `scripts/demo.sh` (runs against a local sequencer at `RISC0_DEV_MODE=0`)
 - **Demo videos:** narrated CLI walkthrough (real proofs, `RISC0_DEV_MODE=0`):
-  <https://youtu.be/HS6i3ucrKeE>; Basecamp GUI walkthrough:
+  <https://youtu.be/HS6i3ucrKeE>; narrated three-use-case demo, builder's
+  voice, cut from the 58-minute real-proof capture:
+  <https://youtu.be/dg6RuNw44a8>; Basecamp GUI walkthrough:
   <https://youtu.be/1Ck_0keFXek>. Raw real-proof terminal recordings under
   `recordings/`. Reviewer tip: turn on YouTube subtitles (CC) for the
-  narrated walkthrough; the GUI demo's captions are burned into the picture.
+  narrated videos; the GUI demo's captions are burned into the picture.
 
 ## Approach
 
@@ -159,9 +161,12 @@ the agent is indistinguishable on-chain from any other holder.
       (<https://youtu.be/HS6i3ucrKeE>) shows dev-mode off, Groth16 proof
       generation, and the settled transactions; the raw cast is
       `recordings/logos-agent-real-proof.cast`. Turn on YouTube subtitles
-      (CC) for the narration. A second narrated walkthrough
-      of the three use cases, cut from the 58-minute real-proof capture, is
-      being finalized.
+      (CC) for the narration. The narrated three-use-case walkthrough
+      (<https://youtu.be/dg6RuNw44a8>), cut from the 58-minute real-proof
+      capture (`recordings/vault-notary-real-proof.cast`), covers the
+      personal file vault, the privacy-preserving notary, and the paid
+      multi-agent task in the builder's own voice; turn on YouTube
+      subtitles (CC) for its narration as well.
 
 > **Testnet evidence:** the agent has real, proof-backed activity on the
 > **official public LEZ testnet** (`testnet.lez.logos.co`, v0.2.4) at

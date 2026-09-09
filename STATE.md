@@ -11,8 +11,11 @@ is the submission act. Deadline: end of Friday 2026-09-18. Spec verified
 payment) is NOT a prize requirement - the A2A payment criterion names no chain
 venue (met on the standalone sequencer at DEV_MODE=0, balances 90/10, payment
 tx 3d065660 block 17 in the 58-min capture), and "3 illustrative use cases on
-LEZ testnet" is met by vault+notary+alerter anchors. Sole prize gap = narrated
-3-use-case video (user records audio; kit ready, aegonmyy/lp0008-video2).
+LEZ testnet" is met by vault+notary+alerter anchors. The narrated 3-use-case
+video EXISTS: user recorded it and uploaded https://youtu.be/dg6RuNw44a8
+(live, public, "LP-0008 3 usecase demo"); linked in SOLUTION.md, LP-0008.md,
+and PR #142 with the reviewer subtitle (CC) tip. Content itself not
+re-verified from this box (YouTube bot-wall); existence/title/author verified.
 
 #49 doc rewrites DONE (commit e9c3d99, pushed): TESTNET_EVIDENCE.md
 (restructured to current epoch, evidence map + headline table), THREE_USE_CASES.md
@@ -129,12 +132,12 @@ Monitor bi333kn2l tails both logs for stage markers and failures.
 ## After the queue drains (tonight/tomorrow)
 
 - Watch lane B -> F10-full -> autopush; verify CI green on the pushed commit.
-- Video 2: narratable mp4 rendered (5:07, agg), user reads the sync-free
-  script from the private kit repo aegonmyy/lp0008-video2 (212a01d) at their
-  own pace, then mux audio, upload, link in PR. All narration scripts were
-  stripped from this repo 2026-09-09; the kit repo is their only home.
-  Videos already on YT are the only video source (demo release assets
-  deleted 2026-09-08).
+- Video 2: DONE 2026-09-09. The user recorded the narration and uploaded
+  the demo themselves: https://youtu.be/dg6RuNw44a8. Link + reviewer CC tip
+  pinned in SOLUTION.md, submission/LP-0008.md, PR #142 body. The
+  stretch/mux path (kit repo, retime_vault_notary.py) stays available if a
+  re-cut is ever wanted. All narration scripts were stripped from this repo
+  2026-09-09; the kit repo aegonmyy/lp0008-video2 is their only home.
 - #49 doc rewrites with fresh hashes: TESTNET_EVIDENCE.md, THREE_USE_CASES.md,
   THREE_TESTNET_AGENTS.md (cite F10-full mints once landed), SOLUTION.md F9/F10
   lines, README dead-hash check.
