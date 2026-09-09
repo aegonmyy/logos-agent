@@ -153,8 +153,13 @@ Monitor bi333kn2l tails both logs for stage markers and failures.
   instruction; last green stays 34293206202 on a906e22). Leftover
   sequencer testcontainers removed (codex + nwaku stay).
   Remaining end-game: dispatch real-proof.yml on the final commit
-  (needs user OK); pin green run + hashes in PR #142; rebuild
-  solutions/LP-0008.md on the fork; flip the PR ready.
+  (needs user OK); pin green run + hashes in PR #142; flip the PR
+  ready. FORK REBUILD DONE 2026-09-09: submission/LP-0008.md copied
+  to fork aegonmyy/lambda-prize solutions/LP-0008.md, branch
+  solution/lp-0008 pushed as 95eacef (clone at /home/ubuntu/lambda-prize);
+  PR #142 head = 95eacef, still draft on purpose; prize repo's Validate
+  Submission workflow passed on it (GitHub-hosted, unrelated to our
+  cancelled self-hosted CI).
 
 ## Blocked / external
 
