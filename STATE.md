@@ -168,8 +168,20 @@ Monitor bi333kn2l tails both logs for stage markers and failures.
   Batch-verified before publish: 13 live hashes, 37 paths, 4 named
   tests, 3 videos, CI run green. An independent hostile-review agent
   (fresh context) confirmed the old file's dead-hash blockers plus
-  extra findings, all folded in; its second pass on the new file was
-  in flight at writing. REPO IS PUBLIC as of 2026-09-09 (user
+  extra findings, all folded in; its SECOND PASS on ee454a6 returned
+  "survives hostile review" (all 13 on-chain citations alive byte-exact,
+  paths/tests/docs real, CI pin real). 5 minor findings: (1) block-338
+  mint had re-served alive, making our lapsed disclosure false in our
+  own disfavor; (2) reliability run commands missed the two src/owner.rs
+  tests; (3) CI green pin one hop short of tip (user posture decision,
+  phrasing already honest); (4) deploy criterion had no inline command;
+  (5) Logos Core "alongside" wording outran the transcript. Fixes 1/2/4/5
+  landed (338 cited live w/ hash + intermittent-serving note, four
+  per-test commands, verbatim HEADLESS_DEPLOY.md command inline, mechanism
+  wording); full re-sweep after: 15/15 tx hashes alive, program id
+  getAccount-verified LE, 38 paths OK, 0 em dashes. PR #142 body found
+  stale (pinned e3bf57a, pre-snapshot-era; hedged pin paragraph; CI
+  bullet unpinned) - updated to the new head after the fork rebuild. REPO IS PUBLIC as of 2026-09-09 (user
   flipped it; API private:false). Local main == origin/main ==
   d47e8c4.
 
