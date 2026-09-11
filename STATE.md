@@ -1,6 +1,26 @@
 # STATE - logos-agent working handoff
 
-Updated: 2026-09-09 (morning). Read this first when picking work up cold.
+Updated: 2026-09-09 (17:00Z). Read this first when picking work up cold.
+
+## SUBMITTED: PR #142 flipped ready 2026-09-09 16:59Z
+
+End state: head c3428ed (fork branch solution/lp-0008, single commit, file
+byte-identical to main submission/LP-0008.md at frozen head 2d2cb0a, md5
+7ab9f748, 35,377 B). BOTH CI LANES GREEN ON THE EXACT HEAD 2d2cb0a:
+fast CI 34357162499 (both jobs log-verified clean) + real-proof 34358611324
+(log-verified clean; agent_spending 114 min, probe 40 min; fresh shielded tx
+b59af9a93ae9ad33d3de6a6b6f1bdfab4061a67edcbd4e6bc64286cee88e29d1, block 1603,
+271,076 B, type 0x01, holder 100 -> 90, RPC-verified live + negative control
+null). File cites its own generation (22e9cee runs 34326620286/34326632248,
+both green) with docs-only disclosure to head; PR body pins the head runs.
+File is fully linkified: 87 markdown links (39 unique repo targets existence-
+checked at 22e9cee; 15 unique explorer tx links all HTTP 200), single sha in
+file, 0 em dashes. Fork master synced to upstream 4ff20a5. Validate
+Submission green. MAIN FROZEN AT 2d2cb0a (user: no more commits this round).
+ eden status: #129 CLOSED 09-07 by weboko; his refile stalled at the
+human-narration video since 09-07 17:25Z; all activity now agamafinance;
+tripwire monitor watches his fork branches + work-repo pushes. Remaining:
+watch for review; answer reviewer questions if any.
 
 ## Where this stands
 
